@@ -13,7 +13,7 @@ from langchain_community.vectorstores import Chroma
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from google import genai
 from google.genai import types
 
@@ -45,9 +45,8 @@ if not OPENROUTER_API_KEY:
 # INDEXING & STORAGE
 # =========================================================
 
-embedding_func = GoogleGenerativeAIEmbeddings(
-    model="models/embedding-001",
-    google_api_key=os.environ.get("GOOGLE_API_KEY")
+embedding_func = FastEmbedEmbeddings(
+    model_name="BAAI/bge-small-en-v1.5"
 )
 
 vectorstore = Chroma(

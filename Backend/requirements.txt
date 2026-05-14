@@ -15,4 +15,4 @@ bcrypt<4.1.0
 google-genai
 google-api-python-client
 exa-py
-langchain-google-genai
+fastembed
