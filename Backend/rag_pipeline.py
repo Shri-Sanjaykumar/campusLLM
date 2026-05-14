@@ -8,7 +8,7 @@ from exa_py import Exa
 
 from langchain_core.prompts import PromptTemplate
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import WebBaseLoader, PyPDFLoader, TextLoader
+from langchain_community.document_loaders import WebBaseLoader, PyMuPDFLoader, TextLoader
 from langchain_community.vectorstores import Chroma
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
@@ -64,7 +64,7 @@ def ingest_document(file_path: str):
     Load a file (PDF or Text), split it, and add to vectorstore.
     """
     if file_path.endswith(".pdf"):
-        loader = PyPDFLoader(file_path)
+        loader = PyMuPDFLoader(file_path)
     else:
         # Default to text loader for other formats
         loader = TextLoader(file_path)
