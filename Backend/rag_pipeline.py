@@ -12,7 +12,8 @@ from langchain_community.document_loaders import WebBaseLoader, PyPDFLoader, Tex
 from langchain_community.vectorstores import Chroma
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from google import genai
 from google.genai import types
 
@@ -44,10 +45,8 @@ if not OPENROUTER_API_KEY:
 # INDEXING & STORAGE
 # =========================================================
 
-embedding_func = OpenAIEmbeddings(
-    api_key=OPENROUTER_API_KEY,
-    base_url="https://openrouter.ai/api/v1",
-    model="openai/text-embedding-ada-002",
+embedding_func = HuggingFaceEmbeddings(
+    model_name="all-MiniLM-L6-v2"
 )
 
 vectorstore = Chroma(
@@ -155,7 +154,7 @@ Answer:
 llm = ChatOpenAI(
     api_key=OPENROUTER_API_KEY,
     base_url="https://openrouter.ai/api/v1",
-    model="openai/gpt-oss-120b",
+    model="google/gemini-2.5-flash:free",
     max_tokens=1000
 )
 
