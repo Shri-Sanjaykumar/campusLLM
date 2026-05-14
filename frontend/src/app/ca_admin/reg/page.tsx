@@ -17,7 +17,7 @@ export default function AdminRegisterPage() {
         setIsLoading(true);
 
         try {
-            const res = await fetch('https://vitcampusllm.onrender.com/register_admin', {
+            const res = await fetch('https://sanjay326-campusllm.hf.space/register_admin', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

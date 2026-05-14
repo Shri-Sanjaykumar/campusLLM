@@ -19,7 +19,7 @@ export default function AdminPage() {
     const fetchFiles = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('https://vitcampusllm.onrender.com/files', {
+            const res = await fetch('https://sanjay326-campusllm.hf.space/files', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {

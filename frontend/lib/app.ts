@@ -7,7 +7,7 @@ export async function askRag(question: string) {
   }
 
   const res = await fetch(
-    `https://vitcampusllm.onrender.com/ask`,
+    `https://sanjay326-campusllm.hf.space/ask`,
     {
       method: "POST",
       headers: headers,

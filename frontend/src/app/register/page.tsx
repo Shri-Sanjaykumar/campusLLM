@@ -17,7 +17,7 @@ export default function RegisterPage() {
         setIsLoading(true);
 
         try {
-            const res = await fetch('https://vitcampusllm.onrender.com/register', {
+            const res = await fetch('https://sanjay326-campusllm.hf.space/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

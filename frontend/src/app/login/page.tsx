@@ -21,7 +21,7 @@ export default function LoginPage() {
         formData.append('password', password);
 
         try {
-            const res = await fetch('https://vitcampusllm.onrender.com/token', {
+            const res = await fetch('https://sanjay326-campusllm.hf.space/token', {
                 method: 'POST',
                 body: formData,
             });
@@ -34,7 +34,7 @@ export default function LoginPage() {
             localStorage.setItem('token', data.access_token);
 
             // Fetch user role
-            const userRes = await fetch('https://vitcampusllm.onrender.com/users/me', {
+            const userRes = await fetch('https://sanjay326-campusllm.hf.space/users/me', {
                 headers: {
                     'Authorization': `Bearer ${data.access_token}`
                 }

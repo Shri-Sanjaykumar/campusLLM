@@ -94,7 +94,7 @@ export default function ChatInterface() {
                 router.push('/login');
                 return;
             }
-            const res = await fetch('https://vitcampusllm.onrender.com/sessions', {
+            const res = await fetch('https://sanjay326-campusllm.hf.space/sessions', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.status === 401) {
@@ -117,7 +117,7 @@ export default function ChatInterface() {
         setIsLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`https://vitcampusllm.onrender.com/sessions/${sessionId}/messages`, {
+            const res = await fetch(`https://sanjay326-campusllm.hf.space/sessions/${sessionId}/messages`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.status === 401) {
@@ -159,7 +159,7 @@ export default function ChatInterface() {
             let activeSessionId = currentSessionId;
 
             if (!activeSessionId) {
-                const createRes = await fetch('https://vitcampusllm.onrender.com/sessions', {
+                const createRes = await fetch('https://sanjay326-campusllm.hf.space/sessions', {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -178,7 +178,7 @@ export default function ChatInterface() {
                 }
             }
 
-            const askRes = await fetch(`https://vitcampusllm.onrender.com/sessions/${activeSessionId}/ask`, {
+            const askRes = await fetch(`https://sanjay326-campusllm.hf.space/sessions/${activeSessionId}/ask`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
