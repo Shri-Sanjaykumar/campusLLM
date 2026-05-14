@@ -13,7 +13,7 @@ from langchain_community.vectorstores import Chroma
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from google import genai
 from google.genai import types
 
@@ -45,8 +45,8 @@ if not OPENROUTER_API_KEY:
 # INDEXING & STORAGE
 # =========================================================
 
-embedding_func = HuggingFaceEmbeddings(
-    model_name="all-MiniLM-L6-v2"
+embedding_func = GoogleGenerativeAIEmbeddings(
+    model="models/text-embedding-004"
 )
 
 vectorstore = Chroma(
