@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
         formData.append('password', password);
 
         try {
-            const res = await fetch('https://campus-llm-production.up.railway.app/token', {
+            const res = await fetch('https://vitcampusllm.onrender.com/token', {
                 method: 'POST',
                 body: formData,
             });
@@ -33,7 +33,7 @@ export default function AdminLoginPage() {
             const data = await res.json();
 
             // Fetch user role
-            const userRes = await fetch('https://campus-llm-production.up.railway.app/users/me', {
+            const userRes = await fetch('https://vitcampusllm.onrender.com/users/me', {
                 headers: {
                     'Authorization': `Bearer ${data.access_token}`
                 }

@@ -17,7 +17,7 @@ export default function RegisterPage() {
         setIsLoading(true);
 
         try {
-            const res = await fetch('https://campus-llm-production.up.railway.app/register', {
+            const res = await fetch('https://vitcampusllm.onrender.com/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
