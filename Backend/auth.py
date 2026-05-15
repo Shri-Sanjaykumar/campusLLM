@@ -23,6 +23,14 @@ def get_password_hash(password):
     password_bytes = password.encode("utf-8")
     return pwd_context.hash(password_bytes[:72])
 
+def authenticate_user(db: Session, username: str, password: str):
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        return False
+    if not verify_password(password, user.hashed_password):
+        return False
+    return user
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
