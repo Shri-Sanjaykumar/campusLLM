@@ -1,0 +1,10 @@
+VIT Vellore Relative Grading System:
+The relative grading system at VIT is designed to evaluate a student's performance relative to the class. 
+Instead of fixed pass marks, grades are awarded based on a normal distribution curve (bell curve) of the class scores.
+- 'S' Grade: Outstanding (>= 90 marks usually, but depends on the class average and standard deviation. Typically top 5-10% of the class).
+- 'A' Grade: Excellent.
+- 'B' Grade: Good.
+- 'C', 'D', 'E' Grades: Average to below average.
+- 'F' Grade: Fail.
+- 'N' Grade: Debarred due to low attendance (minimum 75% required).
+The class average usually forms the midpoint (C or B grade depending on the curve), and standard deviations dictate the cutoffs for higher and lower grades.

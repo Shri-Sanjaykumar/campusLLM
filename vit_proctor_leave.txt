@@ -1,0 +1,6 @@
+VIT Proctor Leave System:
+Every student is assigned a faculty member as a Proctor who acts as a local guardian and academic guide.
+- Leave Types: Home leave, Outing, Medical leave, and OD (On Duty) for events.
+- Process: Students must apply for leave through VTOP.
+- Approval: The leave must be approved by the Proctor, and for longer leaves or home leaves, an OTP/approval is often required from the parents.
+- Timing: Outings are strictly timed, and students must return to the hostel by the stipulated curfew (usually 8:30 PM or 9:00 PM depending on the hostel block and gender).

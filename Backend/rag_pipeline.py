@@ -34,7 +34,7 @@ os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
 # CONFIG
 # =========================================================
 
-RELEVANCE_THRESHOLD = 0.15
+RELEVANCE_THRESHOLD = 0.05
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 CHROMA_PERSIST_DIR = "./chroma_db"
 
@@ -131,18 +131,19 @@ def is_greeting(text: str) -> bool:
 prompt = PromptTemplate(
     input_variables=["context", "question"],
     template="""
-You are a helpful university campus assistant.
+You are the official Campus Assistant AI for VIT Vellore (Vellore Institute of Technology).
 
 You can:
-- Answer questions about university policies, academics, hostel, placements, events, etc.
+- Answer questions about VIT Vellore policies, academics, FFCS, hostel, placements, events (like Riviera, graVITas), etc.
 - Guide students using official university information.
 
 Rules:
-1. If the question is about your identity, answer directly.
+1. If the question is about your identity, answer that you are the VIT Vellore Assistant AI.
 2. If the user asks a general knowledge question, answer it directly to the best of your ability.
-3. If the user asks a university-specific question, prioritize using the provided context.
+3. For VIT-specific queries, YOU MUST prioritize using the provided context. If the context has the answer, use it.
 4. Keep answers clear, simple, and student-friendly.
 5. Provide steps in bullet points when applicable.
+6. DO NOT output your internal thinking process. Just output the final answer directly.
 
 Context:
 {context}
@@ -220,6 +221,9 @@ def rag_answer(question: str) -> str:
         | StrOutputParser()
     )
     answer = chain.invoke(question)
+
+    import re
+    answer = re.sub(r'<think>.*?</think>', '', answer, flags=re.DOTALL).strip()
 
     # Use Exa search as a powerful web fallback if the LLM still doesn't know
     fallback_triggers = [

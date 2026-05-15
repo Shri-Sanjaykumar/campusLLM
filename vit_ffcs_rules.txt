@@ -1,0 +1,8 @@
+Fully Flexible Credit System (FFCS) at VIT:
+FFCS allows students to tailor their academic schedule and coursework.
+Key features:
+- Faculty Selection: Students can choose the faculty they want for a specific course based on availability.
+- Timing Selection: Students can select morning or evening theory/lab slots to design their own timetable.
+- Course Choice: Students can register for University Core, Program Core, Program Electives, and University Electives.
+- Add/Drop: During the Add/Drop phase, students can modify their registered courses.
+Prerequisites must be met before registering for advanced courses. Minimum credits per semester is usually 16, maximum is 27.
