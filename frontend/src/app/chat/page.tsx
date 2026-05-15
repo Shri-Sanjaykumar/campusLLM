@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import ChatInterface from "../components/ChatInterface";
+import ChatInterface from "../../components/ChatInterface";
 
 export default function Home() {
     const router = useRouter();
