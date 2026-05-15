@@ -75,6 +75,15 @@ def ingest_document(file_path: str):
     # vectorstore.persist() # Chroma 0.4+ persists automatically or uses a different mechanism, but explicit persist calls are sometimes needed depending on version. 
     # For newer versions, it's auto-persisted.
 
+def ingest_url(url: str):
+    """
+    Load a website URL, split it, and add to vectorstore.
+    """
+    loader = WebBaseLoader(url)
+    docs = loader.load()
+    splits = text_splitter.split_documents(docs)
+    vectorstore.add_documents(documents=splits)
+
 # =========================================================
 # RETRIEVAL
 # =========================================================

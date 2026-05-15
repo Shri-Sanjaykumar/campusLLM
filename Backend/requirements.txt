@@ -17,3 +17,5 @@ google-api-python-client
 exa-py
 fastembed
 psycopg2-binary
+beautifulsoup4
+lxml

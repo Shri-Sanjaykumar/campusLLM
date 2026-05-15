@@ -193,6 +193,22 @@ def upload_file(
         
     return {"filename": file.filename, "status": "Uploaded and Indexed"}
 
+class URLRequest(BaseModel):
+    url: str
+
+@app.post("/upload-url")
+def upload_url_endpoint(
+    request: URLRequest,
+    current_user: User = Depends(get_current_admin_user)
+):
+    try:
+        from rag_pipeline import ingest_url
+        ingest_url(request.url)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"URL Ingestion failed: {str(e)}")
+    
+    return {"url": request.url, "status": "Uploaded and Indexed"}
+
 @app.get("/files")
 def list_files(current_user: User = Depends(get_current_admin_user)):
     try:
