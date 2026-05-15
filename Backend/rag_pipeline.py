@@ -154,7 +154,7 @@ Answer:
 llm = ChatOpenAI(
     api_key=OPENROUTER_API_KEY,
     base_url="https://openrouter.ai/api/v1",
-    model="google/gemini-2.5-flash:free",
+    model="meta-llama/llama-3.3-70b-instruct:free",
     max_tokens=1000
 )
 
