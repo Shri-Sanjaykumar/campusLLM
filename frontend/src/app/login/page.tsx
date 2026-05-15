@@ -42,7 +42,7 @@ export default function LoginPage() {
             const userData = await userRes.json();
             localStorage.setItem('role', userData.role);
 
-            router.push('/');
+            router.push('/chat');
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : String(err));
         } finally {
