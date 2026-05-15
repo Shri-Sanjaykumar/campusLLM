@@ -138,13 +138,11 @@ You can:
 - Guide students using official university information.
 
 Rules:
-1. If the question is about your identity, capabilities, or what you can help with,
-   answer directly without using the context.
-2. For all university-related queries, answer ONLY using the provided context.
-3. CRITICAL RULE: If the exact answer or specific details relevant to the university query are NOT present in the Context block below, you MUST respond exactly with the phrase: "Sorry, I don't know based on the given context." Do not provide any other information or guesses. Do not provide a partial answer.
+1. If the question is about your identity, answer directly.
+2. If the user asks a general knowledge question, answer it directly to the best of your ability.
+3. If the user asks a university-specific question, prioritize using the provided context.
 4. Keep answers clear, simple, and student-friendly.
 5. Provide steps in bullet points when applicable.
-6. Do NOT add assumptions or external information.
 
 Context:
 {context}
@@ -163,7 +161,7 @@ Answer:
 llm = ChatOpenAI(
     api_key=OPENROUTER_API_KEY,
     base_url="https://openrouter.ai/api/v1",
-    model="meta-llama/llama-3.3-70b-instruct:free",
+    model="google/gemini-2.0-flash-exp:free",
     max_tokens=1000
 )
 
@@ -171,22 +169,7 @@ llm = ChatOpenAI(
 # SECONDARY RAG / FALLBACK
 # =========================================================
 
-def is_university_relevant(question: str) -> bool:
-    relevance_prompt = PromptTemplate(
-        input_variables=["question"],
-        template="""
-Determine if the following question is related to a university, campus, college, or general student life.
-Respond with exactly YES or NO.
-
-Question: {question}
-"""
-    )
-    chain = relevance_prompt | llm | StrOutputParser()
-    try:
-        result = chain.invoke({"question": question})
-        return "YES" in result.strip().upper()
-    except Exception:
-        return False
+# (is_university_relevant removed for broader answering capabilities)
 
 def exa_search_fallback(question: str) -> str:
     import re
@@ -225,34 +208,33 @@ def rag_answer(question: str) -> str:
     context = retrieve_context(question)
 
     if context is None:
-        answer = "I don’t know based on the given context."
-    else:
-        chain = (
-            {
-                "context": lambda _: context,
-                "question": RunnablePassthrough(),
-            }
-            | prompt
-            | llm
-            | StrOutputParser()
-        )
-        answer = chain.invoke(question)
+        context = "" # Empty context for general questions
 
+    chain = (
+        {
+            "context": lambda _: context,
+            "question": RunnablePassthrough(),
+        }
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+    answer = chain.invoke(question)
+
+    # Use Exa search as a powerful web fallback if the LLM still doesn't know
     fallback_triggers = [
-        "don't know based on the given context",
-        "don’t know based on the given context",
-        "do not know based on the given context",
-        "don't know based on the context",
-        "don’t know based on the context",
-        "don't know" # catch shorter versions of the LLM defying prompt rules
+        "don't know",
+        "don’t know",
+        "do not know",
+        "I'm not sure",
+        "I am not sure"
     ]
     
     answer_lower = answer.lower()
     
-    # If the response indicates lack of context knowledge, completely override it with the fallback
+    # If the response indicates lack of knowledge, use Exa search
     if any(trigger in answer_lower for trigger in fallback_triggers):
-        if is_university_relevant(question):
-            extended_query = f"{question} in vit vellore"
-            return exa_search_fallback(extended_query)
+        # We search the exact question since we are no longer limiting to VIT
+        return exa_search_fallback(question)
 
     return answer
