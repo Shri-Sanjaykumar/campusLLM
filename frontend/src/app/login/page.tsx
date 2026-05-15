@@ -58,7 +58,7 @@ export default function LoginPage() {
             const res = await fetch('https://sanjay326-campusllm.hf.space/auth/google', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ credential: credentialResponse.credential })
+                body: JSON.stringify({ credential: (credentialResponse as { credential?: string }).credential })
             });
 
             if (!res.ok) {
