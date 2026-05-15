@@ -16,3 +16,4 @@ google-genai
 google-api-python-client
 exa-py
 fastembed
+psycopg2-binary
