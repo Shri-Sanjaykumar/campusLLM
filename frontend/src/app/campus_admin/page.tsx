@@ -25,7 +25,7 @@ export default function AdminPage() {
             if (res.ok) {
                 const data = await res.json();
                 // Sort by newest first
-                setFiles(data.sort((a: any, b: any) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()));
+                setFiles(data.sort((a: UploadedFile, b: UploadedFile) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()));
             }
         } catch (error) {
             console.error("Failed to fetch files", error);

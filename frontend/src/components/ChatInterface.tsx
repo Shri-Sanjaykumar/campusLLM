@@ -128,7 +128,7 @@ export default function ChatInterface() {
             }
             if (res.ok) {
                 const data = await res.json();
-                setMessages(data.map((m: any) => ({ role: m.role, content: m.content })));
+                setMessages(data.map((m: Message) => ({ role: m.role, content: m.content })));
             }
         } catch (error) {
             console.error("Failed to load session", error);
@@ -142,6 +142,7 @@ export default function ChatInterface() {
 
     useEffect(() => {
         fetchSessions();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleSubmit = async (e?: React.FormEvent, overrideInput?: string) => {
@@ -247,12 +248,12 @@ export default function ChatInterface() {
                                 const match = /language-(\w+)/.exec(className || '')
                                 return match ? (
                                     <pre className="block bg-[#121212] p-4 rounded-xl text-sm font-mono my-4 overflow-x-auto border border-white/5 shadow-inner max-w-full">
-                                        <code className={cn("text-gray-300", className)} {...props as any}>
+                                        <code className={cn("text-gray-300", className)} {...(props as React.HTMLAttributes<HTMLElement>)}>
                                             {children}
                                         </code>
                                     </pre>
                                 ) : (
-                                    <code className="bg-white/10 rounded-md px-1.5 py-0.5 text-[0.9em] font-mono text-purple-300" {...props as any}>
+                                    <code className="bg-white/10 rounded-md px-1.5 py-0.5 text-[0.9em] font-mono text-purple-300" {...(props as React.HTMLAttributes<HTMLElement>)}>
                                         {children}
                                     </code>
                                 )

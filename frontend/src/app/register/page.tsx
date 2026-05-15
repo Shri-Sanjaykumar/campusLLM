@@ -39,7 +39,7 @@ export default function RegisterPage() {
         }
     };
 
-    const handleGoogleSuccess = async (credentialResponse: any) => {
+    const handleGoogleSuccess = async (credentialResponse: unknown) => {
         setIsLoading(true);
         setError('');
         try {

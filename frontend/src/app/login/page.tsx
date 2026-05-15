@@ -51,7 +51,7 @@ export default function LoginPage() {
         }
     };
 
-    const handleGoogleSuccess = async (credentialResponse: any) => {
+    const handleGoogleSuccess = async (credentialResponse: unknown) => {
         setIsLoading(true);
         setError('');
         try {
