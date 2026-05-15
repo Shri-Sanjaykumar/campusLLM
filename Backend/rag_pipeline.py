@@ -161,7 +161,7 @@ Answer:
 llm = ChatOpenAI(
     api_key=OPENROUTER_API_KEY,
     base_url="https://openrouter.ai/api/v1",
-    model="qwen/qwen-2.5-72b-instruct:free",
+    model="deepseek/deepseek-v4-flash:free",
     max_tokens=1000
 )
 
