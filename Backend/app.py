@@ -9,15 +9,9 @@ from pydantic import BaseModel
 
 from database import engine, Base, get_db, User, ChatSession, ChatMessage
 from datetime import datetime
-from auth import (
-    get_password_hash,
-    verify_password,
-    create_access_token,
-    get_current_user,
-    get_current_admin_user,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
-    timedelta
-)
+from auth import authenticate_user, create_access_token, get_password_hash, get_current_user, get_current_admin_user, ACCESS_TOKEN_EXPIRE_MINUTES, timedelta
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 from rag_pipeline import rag_answer, ingest_document
 
 # Create Tables
@@ -106,24 +100,52 @@ def register_admin(user: UserCreate, db: Session = Depends(get_db)):
     return {"message": "Admin user created successfully"}
 
 @app.post("/token", response_model=Token)
-def login_for_access_token(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Session = Depends(get_db)
-):
-    user = db.query(User).filter(User.username == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = authenticate_user(db, form_data.username, form_data.password)
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username, "role": user.role},
-        expires_delta=access_token_expires
+        data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+class GoogleAuthRequest(BaseModel):
+    credential: str
+
+@app.post("/auth/google")
+def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            request.credential, 
+            google_requests.Request(), 
+            "59750816458-4nojl83ujddkh23qrllkab9807rthupv.apps.googleusercontent.com"
+        )
+        email = idinfo.get('email')
+        if not email:
+            raise ValueError("No email in token")
+            
+        username = email.split('@')[0]
+        
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            # Create a student user on the fly
+            user = User(username=username, hashed_password="GOOGLE_AUTH", role="student")
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.username}, expires_delta=access_token_expires
+        )
+        return {"access_token": access_token, "token_type": "bearer", "role": user.role}
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid Google token: {str(e)}")
 
 @app.get("/users/me")
 def read_users_me(current_user: User = Depends(get_current_user)):

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bot, Loader2, ArrowRight } from 'lucide-react';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 export default function LoginPage() {
     const [username, setUsername] = useState('');
@@ -50,7 +51,34 @@ export default function LoginPage() {
         }
     };
 
+    const handleGoogleSuccess = async (credentialResponse: any) => {
+        setIsLoading(true);
+        setError('');
+        try {
+            const res = await fetch('https://sanjay326-campusllm.hf.space/auth/google', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ credential: credentialResponse.credential })
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.detail || 'Google Login failed');
+            }
+
+            const data = await res.json();
+            localStorage.setItem('token', data.access_token);
+            localStorage.setItem('role', data.role);
+            router.push('/chat');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : String(err));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
+        <GoogleOAuthProvider clientId="59750816458-4nojl83ujddkh23qrllkab9807rthupv.apps.googleusercontent.com">
         <div className="flex min-h-screen items-center justify-center bg-[#121212] relative overflow-hidden font-sans">
             {/* Background Accents */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none"></div>
@@ -114,6 +142,21 @@ export default function LoginPage() {
                             )}
                         </button>
                     </div>
+
+                    <div className="relative flex items-center justify-center mt-6">
+                        <div className="absolute border-t border-white/10 w-full"></div>
+                        <span className="relative bg-[#121212] px-4 text-xs text-gray-500 uppercase tracking-widest">Or continue with</span>
+                    </div>
+
+                    <div className="flex justify-center mt-6">
+                        <GoogleLogin
+                            onSuccess={handleGoogleSuccess}
+                            onError={() => setError('Google Login Failed')}
+                            useOneTap
+                            theme="filled_black"
+                            shape="pill"
+                        />
+                    </div>
                 </form>
 
                 <div className="text-center mt-10">
@@ -127,5 +170,6 @@ export default function LoginPage() {
 
             </div>
         </div>
+        </GoogleOAuthProvider>
     );
 }
