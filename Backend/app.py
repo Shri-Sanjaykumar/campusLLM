@@ -116,6 +116,9 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
 
 class GoogleAuthRequest(BaseModel):
     credential: str
+    intended_role: str = "student"
+
+ADMIN_EMAILS = ["shrisanjaykumar06@gmail.com"]
 
 @app.post("/auth/google")
 def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
@@ -129,15 +132,25 @@ def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
         if not email:
             raise ValueError("No email in token")
             
+        if request.intended_role == "admin" and email not in ADMIN_EMAILS:
+            raise HTTPException(status_code=403, detail="Unauthorized Email. You do not have Admin privileges.")
+            
         username = email.split('@')[0]
         
         user = db.query(User).filter(User.username == username).first()
         if not user:
-            # Create a student user on the fly
-            user = User(username=username, hashed_password="GOOGLE_AUTH", role="student")
+            user = User(username=username, hashed_password="GOOGLE_AUTH", role=request.intended_role)
             db.add(user)
             db.commit()
             db.refresh(user)
+        else:
+            if request.intended_role == "admin":
+                if user.role != "admin":
+                    if email in ADMIN_EMAILS:
+                        user.role = "admin"
+                        db.commit()
+                    else:
+                        raise HTTPException(status_code=403, detail="Unauthorized Email. You do not have Admin privileges.")
             
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(

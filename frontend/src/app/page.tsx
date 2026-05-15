@@ -8,7 +8,7 @@ export default function LandingPage() {
     const router = useRouter();
 
     return (
-        <div className="min-h-screen w-full bg-[#0a0a0a] text-white flex flex-col items-center justify-center relative overflow-hidden font-sans">
+        <div className="min-h-screen w-full bg-[#0a0a0a] text-white flex flex-col items-center justify-center relative overflow-x-hidden overflow-y-auto font-sans py-12 md:py-0">
             {/* Vibrant 3D Background Orbs */}
             <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-gradient-to-br from-indigo-600 to-purple-600 blur-[150px] rounded-full opacity-60 pointer-events-none mix-blend-screen animate-pulse"></div>
             <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-gradient-to-tl from-orange-500 to-pink-600 blur-[150px] rounded-full opacity-60 pointer-events-none mix-blend-screen animate-pulse" style={{ animationDelay: '2s' }}></div>

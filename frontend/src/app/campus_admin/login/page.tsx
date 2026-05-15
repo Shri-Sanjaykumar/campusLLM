@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, ShieldCheck } from 'lucide-react';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 export default function AdminLoginPage() {
     const [username, setUsername] = useState('');
@@ -55,7 +56,35 @@ export default function AdminLoginPage() {
         }
     };
 
+    const handleGoogleSuccess = async (credentialResponse: unknown) => {
+        setIsLoading(true);
+        setError('');
+        try {
+            const res = await fetch('https://sanjay326-campusllm.hf.space/auth/google', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                // Request admin privileges
+                body: JSON.stringify({ credential: (credentialResponse as any).credential, intended_role: "admin" })
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.detail || 'Google Admin Login failed');
+            }
+
+            const data = await res.json();
+            localStorage.setItem('token', data.access_token);
+            localStorage.setItem('role', data.role);
+            router.push('/campus_admin');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : String(err));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
+        <GoogleOAuthProvider clientId="59750816458-4nojl83ujddkh23qrllkab9807rthupv.apps.googleusercontent.com">
         <div className="flex min-h-screen items-center justify-center bg-[#121212] relative overflow-hidden font-sans">
             {/* Background Accents (Red/Orange for distinct Admin feel) */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-red-600/10 blur-[120px] rounded-full pointer-events-none"></div>
@@ -116,6 +145,21 @@ export default function AdminLoginPage() {
                             )}
                         </button>
                     </div>
+
+                    <div className="relative flex items-center justify-center mt-6">
+                        <div className="absolute border-t border-white/10 w-full"></div>
+                        <span className="relative bg-[#121212] px-4 text-xs text-gray-500 uppercase tracking-widest">Or enter as Admin with</span>
+                    </div>
+
+                    <div className="flex justify-center mt-6">
+                        <GoogleLogin
+                            onSuccess={handleGoogleSuccess}
+                            onError={() => setError('Google Admin Login Failed')}
+                            useOneTap
+                            theme="filled_black"
+                            shape="pill"
+                        />
+                    </div>
                 </form>
 
                 <div className="text-center mt-10 border-t border-white/5 pt-6 space-y-3">
@@ -128,5 +172,6 @@ export default function AdminLoginPage() {
                 </div>
             </div>
         </div>
+        </GoogleOAuthProvider>
     );
 }
