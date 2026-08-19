@@ -1,51 +1,145 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Send, Menu, Plus, Bot, Loader2, MessageSquare, X, Globe, Building, Calendar, GraduationCap, BookOpen, Briefcase } from "lucide-react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import {
+    Send, Menu, Plus, Bot, Loader2, MessageSquare, X, Globe,
+    Building, Calendar, GraduationCap, BookOpen, Briefcase,
+    Copy, Check, ThumbsUp, ThumbsDown, Trash2, Paperclip, FileText, Image as ImageIcon,
+    Edit3, Search, Activity, LogOut, ShieldCheck, Sparkles, User, Calculator, ChevronRight
+} from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter } from "next/navigation";
+import {
+    getSessions,
+    createSession,
+    deleteSession,
+    updateSessionTitle,
+    getSessionMessages,
+    askSessionWithAttachment,
+    calculateGrade,
+    calculateGPA,
+    checkBackendHealth,
+    getCurrentUser,
+    type ChatSession,
+    type ChatMessage
+} from "@/lib/api";
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-type Message = {
-    role: "user" | "assistant";
-    content: string;
-};
-
-type ChatSession = {
-    id: number;
-    title: string;
-    created_at: string;
-};
-
-const SUGGESTED_QUERIES = [
-    { text: "What is the hostel fee structure for 2026?", icon: Building, label: "Hostel fees" },
-    { text: "When does the next semester begin?", icon: Calendar, label: "Academic calendar" },
-    { text: "What is the S grade policy", icon: GraduationCap, label: "Grades" },
-    { text: "what happens if i caught for malpractice during CAT exams", icon: BookOpen, label: "Malpractice" },
-    { text: "Do we have placement training during weekend in final year", icon: Briefcase, label: "Placements" },
+const SUGGESTED_CATEGORIES = [
+    {
+        title: "Academics & FFCS",
+        text: "I need how to select faculty for courses",
+        icon: Calendar,
+        color: "from-blue-500/20 to-cyan-500/20 text-cyan-400 border-cyan-500/30"
+    },
+    {
+        title: "2026 Placements",
+        text: "What are the placement statistics and top offers for the 2026 batch?",
+        icon: Briefcase,
+        color: "from-purple-500/20 to-pink-500/20 text-purple-400 border-purple-500/30"
+    },
+    {
+        title: "9-Pointer Policy",
+        text: "What is the 9 pointer attendance exemption rule?",
+        icon: GraduationCap,
+        color: "from-indigo-500/20 to-purple-500/20 text-indigo-400 border-indigo-500/30"
+    },
+    {
+        title: "Grade Predictor",
+        text: "Calculate my grade: CAT1: 42, CAT2: 44, DA: 28, FAT: 82",
+        icon: Calculator,
+        color: "from-emerald-500/20 to-teal-500/20 text-emerald-400 border-emerald-500/30"
+    },
 ];
 
 const PLACEHOLDERS = [
-    "Ask anything...",
-    "When does campus placement start?",
-    "What is the average package for CSE?",
-    "Library open hours?"
+    "Ask about FFCS faculty selection...",
+    "What are the top 2026 placement offers?",
+    "Calculate my relative grade or GPA...",
+    "Attach an assignment image/PDF for analysis...",
+    "How does the 9-pointer attendance rule work?"
 ];
 
+function CodeBlock({ className, children }: { className?: string; children: React.ReactNode }) {
+    const [copied, setCopied] = useState(false);
+    const codeString = String(children).replace(/\n$/, '');
+    const match = /language-(\w+)/.exec(className || '');
+    const language = match ? match[1] : 'code';
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(codeString);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <div className="relative my-4 rounded-xl border border-white/10 bg-[#0d101a] overflow-hidden shadow-lg">
+            <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5 text-xs text-gray-400">
+                <span className="font-mono text-indigo-300 lowercase">{language}</span>
+                <button
+                    onClick={handleCopy}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
+                >
+                    {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                    <span>{copied ? "Copied!" : "Copy"}</span>
+                </button>
+            </div>
+            <pre className="p-4 text-xs sm:text-sm font-mono overflow-x-auto text-gray-200">
+                <code>{children}</code>
+            </pre>
+        </div>
+    );
+}
+
 export default function ChatInterface() {
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
+    const [attachedFile, setAttachedFile] = useState<File | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [backendStatus, setBackendStatus] = useState<"healthy" | "offline" | "checking">("checking");
+    const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
+    const [editTitle, setEditTitle] = useState("");
+    const [userRole, setUserRole] = useState<string>("student");
+    const [username, setUsername] = useState<string>("Student");
+    const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
+    const [feedbackMap, setFeedbackMap] = useState<Record<number, "up" | "down">>({});
+
+    // Calculator Modal State
+    const [showCalculator, setShowCalculator] = useState(false);
+    const [calcTab, setCalcTab] = useState<"grade" | "gpa">("grade");
+    
+    // Grade Calc Inputs
+    const [cat1, setCat1] = useState<number>(40);
+    const [cat2, setCat2] = useState<number>(42);
+    const [da, setDa] = useState<number>(27);
+    const [fat, setFat] = useState<number>(80);
+    const [classAvg, setClassAvg] = useState<number>(65);
+    const [classSd, setClassSd] = useState<number>(12);
+    const [gradeResult, setGradeResult] = useState<any>(null);
+
+    // GPA Calc Inputs
+    const [courses, setCourses] = useState([
+        { name: "Data Structures", credits: 4, grade: "S" },
+        { name: "Operating Systems", credits: 3, grade: "A" },
+        { name: "DBMS", credits: 4, grade: "A" },
+        { name: "Maths for CS", credits: 4, grade: "B" }
+    ]);
+    const [prevCgpa, setPrevCgpa] = useState<number>(8.8);
+    const [prevCredits, setPrevCredits] = useState<number>(40);
+    const [gpaResult, setGpaResult] = useState<any>(null);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
 
     const [currentPlaceholder, setCurrentPlaceholder] = useState("");
@@ -53,13 +147,12 @@ export default function ChatInterface() {
     const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
-        const timeoutContext = setTimeout(() => {
+        const timeout = setTimeout(() => {
             const fullText = PLACEHOLDERS[placeholderIndex];
-
             if (!isDeleting) {
                 setCurrentPlaceholder(fullText.substring(0, currentPlaceholder.length + 1));
                 if (currentPlaceholder.length === fullText.length) {
-                    setTimeout(() => setIsDeleting(true), 1500);
+                    setTimeout(() => setIsDeleting(true), 2000);
                 }
             } else {
                 setCurrentPlaceholder(fullText.substring(0, currentPlaceholder.length - 1));
@@ -68,9 +161,9 @@ export default function ChatInterface() {
                     setPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDERS.length);
                 }
             }
-        }, isDeleting ? 30 : 50);
+        }, isDeleting ? 25 : 50);
 
-        return () => clearTimeout(timeoutContext);
+        return () => clearTimeout(timeout);
     }, [currentPlaceholder, isDeleting, placeholderIndex]);
 
     useEffect(() => {
@@ -85,442 +178,763 @@ export default function ChatInterface() {
 
     useEffect(() => {
         scrollToBottom();
-    }, [messages]);
+    }, [messages, isLoading]);
 
-    const fetchSessions = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                router.push('/login');
-                return;
-            }
-            const res = await fetch('https://sanjay326-campusllm.hf.space/sessions', {
-                headers: { 'Authorization': `Bearer ${token}` }
+    // Check Auth & Load Sessions
+    useEffect(() => {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            router.push("/login");
+            return;
+        }
+
+        getCurrentUser()
+            .then((user) => {
+                setUsername(user.username);
+                setUserRole(user.role);
+            })
+            .catch(() => {
+                localStorage.removeItem("token");
+                router.push("/login");
             });
-            if (res.status === 401) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('role');
-                router.push('/login');
-                return;
+
+        checkBackendHealth()
+            .then((res) => {
+                setBackendStatus(res.status === "healthy" ? "healthy" : "offline");
+            })
+            .catch(() => setBackendStatus("offline"));
+
+        loadSessions();
+    }, [router]);
+
+    const loadSessions = async () => {
+        try {
+            const data = await getSessions();
+            setSessions(data);
+            if (data.length > 0 && !currentSessionId) {
+                switchSession(data[0].id);
+            } else if (data.length === 0) {
+                handleNewChat();
             }
-            if (res.ok) {
-                const data = await res.json();
-                setSessions(data);
-            }
-        } catch (error) {
-            console.error("Failed to fetch sessions", error);
+        } catch (err) {
+            console.error("Failed to load sessions:", err);
         }
     };
 
-    const loadSession = async (sessionId: number) => {
+    const switchSession = async (sessionId: number) => {
         setCurrentSessionId(sessionId);
         setIsLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`https://sanjay326-campusllm.hf.space/sessions/${sessionId}/messages`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.status === 401) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('role');
-                router.push('/login');
-                return;
-            }
-            if (res.ok) {
-                const data = await res.json();
-                setMessages(data.map((m: Message) => ({ role: m.role, content: m.content })));
-            }
-        } catch (error) {
-            console.error("Failed to load session", error);
+            const msgs = await getSessionMessages(sessionId);
+            setMessages(msgs);
+        } catch (err) {
+            console.error("Failed to load messages:", err);
         } finally {
             setIsLoading(false);
-            if (window.innerWidth < 768) {
-                setSidebarOpen(false);
-            }
         }
     };
 
-    useEffect(() => {
-        fetchSessions();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    const handleNewChat = async () => {
+        try {
+            const newSession = await createSession();
+            setSessions((prev) => [newSession, ...prev]);
+            setCurrentSessionId(newSession.id);
+            setMessages([]);
+            setAttachedFile(null);
+            if (window.innerWidth < 768) setSidebarOpen(false);
+        } catch (err) {
+            console.error("Failed to create session:", err);
+        }
+    };
 
-    const handleSubmit = async (e?: React.FormEvent, overrideInput?: string) => {
-        e?.preventDefault();
-        const textToSubmit = overrideInput !== undefined ? overrideInput : input;
-        if (!textToSubmit.trim() || isLoading) return;
+    const handleDeleteSession = async (e: React.MouseEvent, sessionId: number) => {
+        e.stopPropagation();
+        try {
+            await deleteSession(sessionId);
+            const remaining = sessions.filter((s) => s.id !== sessionId);
+            setSessions(remaining);
+            if (currentSessionId === sessionId) {
+                if (remaining.length > 0) {
+                    switchSession(remaining[0].id);
+                } else {
+                    handleNewChat();
+                }
+            }
+        } catch (err) {
+            console.error("Failed to delete session:", err);
+        }
+    };
 
-        const userMessage = textToSubmit.trim();
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setAttachedFile(e.target.files[0]);
+        }
+    };
+
+    const handleCalculateGrade = async () => {
+        try {
+            const res = await calculateGrade({
+                cat1, cat2, da, fat, class_avg: classAvg, class_sd: classSd
+            });
+            setGradeResult(res);
+        } catch (err) {
+            console.error("Grade calc error:", err);
+        }
+    };
+
+    const handleCalculateGPA = async () => {
+        try {
+            const res = await calculateGPA({
+                courses, previous_cgpa: prevCgpa, previous_credits: prevCredits
+            });
+            setGpaResult(res);
+        } catch (err) {
+            console.error("GPA calc error:", err);
+        }
+    };
+
+    const insertCalcToChat = (text: string) => {
+        setShowCalculator(false);
+        setInput(text);
+    };
+
+    const handleSubmit = async (e?: React.FormEvent, customPrompt?: string) => {
+        if (e) e.preventDefault();
+        const queryText = customPrompt || input;
+        if ((!queryText.trim() && !attachedFile) || isLoading) return;
+
+        let activeSessionId = currentSessionId;
+        if (!activeSessionId) {
+            try {
+                const newSession = await createSession();
+                setSessions((prev) => [newSession, ...prev]);
+                activeSessionId = newSession.id;
+                setCurrentSessionId(activeSessionId);
+            } catch (err) {
+                console.error("Failed to create initial session:", err);
+                return;
+            }
+        }
+
+        const displayMsg = attachedFile
+            ? `${queryText}\n\n📎 *[Attached: ${attachedFile.name}]*`
+            : queryText;
+
+        const userMsg: ChatMessage = {
+            role: "user",
+            content: displayMsg,
+            created_at: new Date().toISOString(),
+        };
+
+        setMessages((prev) => [...prev, userMsg]);
+        const fileToSend = attachedFile;
         setInput("");
-        setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+        setAttachedFile(null);
         setIsLoading(true);
 
         try {
-            const token = localStorage.getItem('token');
-            let activeSessionId = currentSessionId;
+            const res = await askSessionWithAttachment(activeSessionId, queryText || "Please analyze this attached file", fileToSend || undefined);
+            const asstMsg: ChatMessage = {
+                role: "assistant",
+                content: res.answer,
+                created_at: new Date().toISOString(),
+            };
+            setMessages((prev) => [...prev, asstMsg]);
 
-            if (!activeSessionId) {
-                const createRes = await fetch('https://sanjay326-campusllm.hf.space/sessions', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (createRes.status === 401) {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('role');
-                    router.push('/login');
-                    return;
-                }
-                if (createRes.ok) {
-                    const newSession = await createRes.json();
-                    activeSessionId = newSession.id;
-                    setCurrentSessionId(activeSessionId);
-                } else {
-                    throw new Error("Failed to create session");
-                }
-            }
-
-            const askRes = await fetch(`https://sanjay326-campusllm.hf.space/sessions/${activeSessionId}/ask`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ question: userMessage, session_id: activeSessionId })
-            });
-
-            if (askRes.status === 401) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('role');
-                router.push('/login');
-                return;
-            }
-
-            if (!askRes.ok) throw new Error("Failed to get answer");
-
-            const data = await askRes.json();
-            setMessages((prev) => [
-                ...prev,
-                { role: "assistant", content: data.answer },
-            ]);
-
-            fetchSessions();
-        } catch (error) {
-            console.error(error);
-            setMessages((prev) => [
-                ...prev,
-                { role: "assistant", content: "Sorry, I had trouble connecting to the server. Please check your backend connection." },
-            ]);
+            // Refresh sessions list
+            const updated = await getSessions();
+            setSessions(updated);
+        } catch (err: any) {
+            const errorMsg: ChatMessage = {
+                role: "assistant",
+                content: `⚠️ **Connection Error:** ${err.message || "Failed to reach CampusLLM intelligence server."}`,
+                created_at: new Date().toISOString(),
+            };
+            setMessages((prev) => [...prev, errorMsg]);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const renderMessageContent = (content: string) => {
-        const sourcesMatch = content.match(/\*\*Sources:\*\*\s*\n([\s\S]+)/);
-        let mainContent = content;
-        const sources: { title: string, uri: string }[] = [];
-
-        if (sourcesMatch) {
-            mainContent = content.replace(sourcesMatch[0], '').trim();
-            const sourcesText = sourcesMatch[1];
-            const sourceRegex = /-\s+\[(.*?)\]\((.*?)\)/g;
-            let match;
-            while ((match = sourceRegex.exec(sourcesText)) !== null) {
-                sources.push({ title: match[1], uri: match[2] });
-            }
-        }
-
-        return (
-            <div className="flex flex-col w-full min-w-0">
-                <div className="flex-1 text-[15px] leading-relaxed break-words mt-1.5 md:mt-2 text-gray-200 space-y-4 w-full">
-                    <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                            ul: (props) => <ul className="list-disc pl-6 space-y-1 mb-4" {...props} />,
-                            ol: (props) => <ol className="list-decimal pl-6 space-y-1 mb-4" {...props} />,
-                            li: (props) => <li className="pl-1 marker:text-gray-500" {...props} />,
-                            h1: (props) => <h1 className="text-2xl font-bold mt-6 mb-3 text-white" {...props} />,
-                            h2: (props) => <h2 className="text-xl font-bold mt-5 mb-3 text-white pb-1 border-b border-white/10" {...props} />,
-                            h3: (props) => <h3 className="text-lg font-bold mt-4 mb-2 text-white" {...props} />,
-                            p: (props) => <p className="mb-4 last:mb-0 leading-relaxed" {...props} />,
-                            a: (props) => <a className="text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors" target="_blank" rel="noreferrer" {...props} />,
-                            code: ({ className, children, ...props }) => {
-                                const match = /language-(\w+)/.exec(className || '')
-                                return match ? (
-                                    <pre className="block bg-[#121212] p-4 rounded-xl text-sm font-mono my-4 overflow-x-auto border border-white/5 shadow-inner max-w-full">
-                                        <code className={cn("text-gray-300", className)} {...(props as React.HTMLAttributes<HTMLElement>)}>
-                                            {children}
-                                        </code>
-                                    </pre>
-                                ) : (
-                                    <code className="bg-white/10 rounded-md px-1.5 py-0.5 text-[0.9em] font-mono text-purple-300" {...(props as React.HTMLAttributes<HTMLElement>)}>
-                                        {children}
-                                    </code>
-                                )
-                            },
-                            strong: (props) => <strong className="font-semibold text-white" {...props} />,
-                            blockquote: (props) => <blockquote className="border-l-2 border-purple-500/50 pl-4 py-1 italic text-gray-400 my-4 bg-purple-500/5 rounded-r-lg" {...props} />,
-                            table: (props) => <div className="w-full overflow-x-auto my-4 max-w-full"><table className="w-full text-sm text-left border-collapse border border-white/10 rounded-lg overflow-hidden" {...props} /></div>,
-                            th: (props) => <th className="bg-[#2f2f2f] p-3 border-b border-white/10 font-semibold text-gray-200" {...props} />,
-                            td: (props) => <td className="p-3 border-b border-white/5 last:border-0" {...props} />,
-                        }}
-                    >
-                        {mainContent}
-                    </ReactMarkdown>
-                </div>
-
-                {sources.length > 0 && (
-                    <div className="w-full mt-5 border-t border-white/10 pt-4">
-                        <div className="text-xs font-semibold text-gray-400 mb-3 flex items-center gap-1.5 uppercase tracking-wider">
-                            <Globe size={13} className="text-gray-400" />
-                            Sources
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                            {sources.map((src, i) => (
-                                <a
-                                    key={i}
-                                    href={src.uri}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="group flex flex-col justify-center bg-[#1c1c1c] hover:bg-[#2a2a2a] border border-white/10 hover:border-white/20 rounded-xl px-2.5 py-2.5 transition-all text-left w-full shadow-sm overflow-hidden"
-                                >
-                                    <div className="flex items-center gap-2 mb-1 text-xs">
-                                        <div className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[9px] text-gray-300 font-medium shrink-0 group-hover:bg-white/20 transition-colors">
-                                            {i + 1}
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-200 truncate w-full flex-1">
-                                            {src.title}
-                                        </span>
-                                    </div>
-                                </a>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
+    const filteredSessions = useMemo(() => {
+        if (!searchQuery.trim()) return sessions;
+        return sessions.filter((s) =>
+            s.title.toLowerCase().includes(searchQuery.toLowerCase())
         );
+    }, [sessions, searchQuery]);
+
+    const handleCopyMessage = (text: string, index: number) => {
+        navigator.clipboard.writeText(text);
+        setCopiedMessageIndex(index);
+        setTimeout(() => setCopiedMessageIndex(null), 2000);
     };
 
     return (
-        <div className="flex h-full w-full bg-[#212121] text-gray-100 font-sans overflow-hidden">
-            {/* Mobile Overlay */}
-            {sidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black/70 z-30 md:hidden transition-opacity"
-                    onClick={() => setSidebarOpen(false)}
-                />
-            )}
-
+        <div className="flex h-screen bg-[#0a0c14] text-white font-sans overflow-hidden">
             {/* Sidebar */}
             <div
                 className={cn(
-                    "fixed inset-y-0 left-0 z-40 w-[260px] bg-[#171717] transform transition-all duration-300 ease-in-out md:relative md:translate-x-0 flex flex-col border-r border-white/5",
-                    !sidebarOpen && "-translate-x-full md:w-0 md:opacity-0 md:border-none overflow-hidden"
+                    "fixed inset-y-0 left-0 z-40 flex flex-col bg-[#0e111d] border-r border-white/5 transition-all duration-300 md:static md:translate-x-0 shadow-2xl",
+                    sidebarOpen ? "translate-x-0 w-72" : "-translate-x-full md:w-0 md:opacity-0 md:pointer-events-none"
                 )}
             >
-                <div className="flex flex-col h-full p-3 w-[260px]">
-                    <div className="flex items-center justify-between mb-4 md:hidden text-gray-400 px-1 pt-1">
-                        <span className="font-semibold text-white">Menu</span>
-                        <button onClick={() => setSidebarOpen(false)} className="p-1 hover:bg-white/10 rounded-md transition-colors" title="Close Sidebar">
-                            <X size={20} />
-                        </button>
-                    </div>
-
-                    <button
-                        onClick={() => {
-                            setMessages([]);
-                            setCurrentSessionId(null);
-                            if (window.innerWidth < 768) setSidebarOpen(false);
-                        }}
-                        className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-white/5 transition-colors text-sm text-white border border-white/5 shadow-sm"
-                    >
-                        <Plus size={16} />
-                        New chat
-                    </button>
-
-                    <div className="flex-1 overflow-y-auto mt-6 custom-scrollbar pr-2">
-                        <div className="text-xs font-semibold text-gray-500 px-3 py-2 mb-1">Recent Chats</div>
-                        {sessions.length === 0 ? (
-                            <div className="px-3 py-2 text-sm text-gray-500 italic">No previous chats</div>
-                        ) : (
-                            sessions.map((session) => (
-                                <div
-                                    key={session.id}
-                                    onClick={() => loadSession(session.id)}
-                                    className={cn(
-                                        "px-3 py-2.5 text-sm truncate rounded-lg cursor-pointer transition-all mb-1 flex items-center gap-3 border",
-                                        currentSessionId === session.id
-                                            ? "bg-white/10 text-white font-medium border-white/10 shadow-sm"
-                                            : "text-gray-300 hover:bg-white/5 border-transparent"
-                                    )}
-                                >
-                                    <MessageSquare size={14} className={currentSessionId === session.id ? "text-white" : "text-gray-500"} />
-                                    <span className="truncate">{session.title}</span>
-                                </div>
-                            ))
-                        )}
-                    </div>
-
-                    <div className="border-t border-white/5 pt-3 mt-2">
-                        <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                                U
-                            </div>
-                            <div className="text-sm font-medium text-gray-200">User</div>
+                {/* Sidebar Header */}
+                <div className="flex items-center justify-between p-4 border-b border-white/5">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]">
+                            <Bot size={18} />
+                        </div>
+                        <div>
+                            <h1 className="font-bold text-sm tracking-tight text-white flex items-center gap-1.5">
+                                Campus<span className="text-indigo-400">LLM</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-normal">v2.1</span>
+                            </h1>
                         </div>
                     </div>
+                    <button
+                        onClick={() => setSidebarOpen(false)}
+                        className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 md:hidden"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+
+                {/* New Chat Button */}
+                <div className="p-3">
+                    <button
+                        onClick={handleNewChat}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold text-xs transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] active:scale-[0.98]"
+                    >
+                        <Plus size={16} />
+                        <span>New Conversation</span>
+                    </button>
+                </div>
+
+                {/* Search Sessions */}
+                <div className="px-3 pb-2">
+                    <div className="relative">
+                        <Search size={14} className="absolute left-3 top-2.5 text-gray-500" />
+                        <input
+                            type="text"
+                            placeholder="Search chats..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-8 pr-3 py-1.5 bg-white/5 border border-white/5 rounded-lg text-xs text-gray-300 placeholder-gray-500 focus:outline-none focus:border-indigo-500/50"
+                        />
+                    </div>
+                </div>
+
+                {/* Session List */}
+                <div className="flex-1 overflow-y-auto px-2 space-y-1 py-1 custom-scrollbar">
+                    {filteredSessions.map((session) => {
+                        const isActive = currentSessionId === session.id;
+                        return (
+                            <div
+                                key={session.id}
+                                onClick={() => switchSession(session.id)}
+                                className={cn(
+                                    "group relative flex items-center justify-between p-2.5 rounded-xl cursor-pointer text-xs transition-all",
+                                    isActive
+                                        ? "bg-indigo-600/15 border border-indigo-500/30 text-white font-medium"
+                                        : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
+                                )}
+                            >
+                                <div className="flex items-center gap-2 truncate pr-2">
+                                    <MessageSquare size={14} className={isActive ? "text-indigo-400" : "text-gray-500"} />
+                                    <span className="truncate">{session.title}</span>
+                                </div>
+                                <button
+                                    onClick={(e) => handleDeleteSession(e, session.id)}
+                                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-400 transition-opacity rounded"
+                                >
+                                    <Trash2 size={13} />
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* User Info & Logout */}
+                <div className="p-3 border-t border-white/5 bg-[#0a0c14]/50 flex items-center justify-between text-xs text-gray-400">
+                    <div className="flex items-center gap-2 truncate">
+                        <div className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-[10px]">
+                            {username.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="truncate font-medium text-gray-300">{username}</span>
+                    </div>
+                    <button
+                        onClick={() => {
+                            localStorage.removeItem("token");
+                            router.push("/login");
+                        }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-white/5 transition-colors"
+                        title="Sign Out"
+                    >
+                        <LogOut size={15} />
+                    </button>
                 </div>
             </div>
 
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col h-full relative w-full overflow-hidden">
-                {/* Header */}
-                <div className="sticky top-0 z-50 flex items-center p-3 text-gray-200 pointer-events-none">
-                    <button
-                        onClick={() => setSidebarOpen(!sidebarOpen)}
-                        className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors pointer-events-auto"
-                        title="Toggle Sidebar"
-                    >
-                        <Menu size={20} />
-                    </button>
-                    <span className="ml-3 font-medium text-lg text-gray-200 md:hidden">Chat</span>
+            {/* Main Chat View */}
+            <div className="flex-1 flex flex-col h-full relative overflow-hidden">
+                {/* Top Navigation Bar */}
+                <div className="h-14 border-b border-white/5 px-4 flex items-center justify-between bg-[#0a0c14]/80 backdrop-blur-md z-10">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setSidebarOpen(!sidebarOpen)}
+                            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                        >
+                            <Menu size={18} />
+                        </button>
+                        <span className="font-semibold text-sm text-gray-200">
+                            {sessions.find((s) => s.id === currentSessionId)?.title || "Campus AI Chat"}
+                        </span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span>Campus AI Active</span>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Messages Area */}
-                {messages.length > 0 && (
-                    <div className="flex-1 overflow-y-auto custom-scrollbar w-full flex flex-col items-center">
-                        <div className="flex flex-col w-full max-w-3xl pb-4 pt-4 px-4 md:px-0">
-                            {messages.map((msg, idx) => (
-                                <div key={idx} className={cn("flex w-full mt-6 first:mt-0", msg.role === 'user' ? "justify-end" : "justify-start")}>
-                                    {msg.role === 'user' ? (
-                                        <div className="max-w-[85%] md:max-w-[75%] bg-[#2f2f2f] text-gray-100 rounded-3xl px-5 py-3.5 shadow-sm text-[15px] leading-relaxed break-words whitespace-pre-wrap">
-                                            {msg.content}
-                                        </div>
-                                    ) : (
-                                        <div className="flex gap-4 w-full">
-                                            <div className="w-8 h-8 md:w-9 md:h-9 bg-white rounded-full flex items-center justify-center text-[#212121] flex-shrink-0 mt-1 shadow-sm border border-white/10">
-                                                <Bot size={18} />
+                {/* Message Stream */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:px-12 space-y-6 custom-scrollbar">
+                    {messages.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center max-w-2xl mx-auto text-center px-4 my-auto">
+                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(99,102,241,0.5)] text-white">
+                                <Bot size={34} />
+                            </div>
+                            <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-white">
+                                How can I help with your campus doubts?
+                            </h2>
+                            <p className="text-sm text-gray-400 mb-8 max-w-md">
+                                Ask any question about FFCS faculty selection, 9-pointer rules, 2026 placements, grade predictions, or attach documents & images for instant doubt resolution.
+                            </p>
+
+                            {/* Suggestion Cards */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                                {SUGGESTED_CATEGORIES.map((cat, i) => {
+                                    const Icon = cat.icon;
+                                    return (
+                                        <button
+                                            key={i}
+                                            onClick={() => handleSubmit(undefined, cat.text)}
+                                            className={cn(
+                                                "p-3.5 rounded-2xl border text-left transition-all duration-200 hover:-translate-y-0.5 bg-gradient-to-br flex flex-col justify-between shadow-lg",
+                                                cat.color
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-2 mb-1.5">
+                                                <Icon size={16} />
+                                                <span className="font-semibold text-xs text-white">{cat.title}</span>
                                             </div>
-                                            {renderMessageContent(msg.content)}
+                                            <p className="text-xs text-gray-300 line-clamp-2 leading-relaxed">{cat.text}</p>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ) : (
+                        messages.map((msg, idx) => {
+                            const isUser = msg.role === "user";
+                            return (
+                                <div
+                                    key={idx}
+                                    className={cn(
+                                        "flex gap-3 max-w-3xl mx-auto",
+                                        isUser ? "justify-end" : "justify-start"
+                                    )}
+                                >
+                                    {!isUser && (
+                                        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex-shrink-0 flex items-center justify-center text-white shadow-md mt-0.5">
+                                            <Bot size={16} />
+                                        </div>
+                                    )}
+
+                                    <div
+                                        className={cn(
+                                            "relative rounded-2xl px-5 py-4 max-w-[88%] sm:max-w-[80%] text-sm leading-relaxed",
+                                            isUser
+                                                ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-tr-none shadow-[0_0_20px_rgba(99,102,241,0.25)]"
+                                                : "bg-[#131728] border border-white/5 text-gray-200 rounded-tl-none shadow-xl"
+                                        )}
+                                    >
+                                        <div className="markdown-content">
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={{
+                                                    code({ node, inline, className, children, ...props }: any) {
+                                                        const match = /language-(\w+)/.exec(className || '');
+                                                        const isInline = inline || (!match && !String(children).includes('\n'));
+                                                        if (isInline) {
+                                                            return (
+                                                                <code className="px-1.5 py-0.5 rounded bg-white/10 text-indigo-300 font-mono text-xs" {...props}>
+                                                                    {children}
+                                                                </code>
+                                                            );
+                                                        }
+                                                        return <CodeBlock className={className}>{children}</CodeBlock>;
+                                                    },
+                                                    p({ children }) {
+                                                        return <div className="mb-2 leading-relaxed last:mb-0">{children}</div>;
+                                                    },
+                                                    table({ children }) {
+                                                        return (
+                                                            <div className="overflow-x-auto my-3 rounded-lg border border-white/10">
+                                                                <table className="min-w-full divide-y divide-white/10 text-left text-xs">
+                                                                    {children}
+                                                                </table>
+                                                            </div>
+                                                        );
+                                                    },
+                                                    th({ children }) {
+                                                        return <th className="bg-white/5 px-3 py-2 text-indigo-300 font-semibold">{children}</th>;
+                                                    },
+                                                    td({ children }) {
+                                                        return <td className="px-3 py-2 border-t border-white/5">{children}</td>;
+                                                    }
+                                                }}
+                                            >
+                                                {msg.content}
+                                            </ReactMarkdown>
+                                        </div>
+
+                                        {!isUser && (
+                                            <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-white/5 text-xs text-gray-500">
+                                                <span>CampusLLM AI</span>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => handleCopyMessage(msg.content, idx)}
+                                                        className="hover:text-gray-300 transition-colors p-1 rounded"
+                                                        title="Copy Response"
+                                                    >
+                                                        {copiedMessageIndex === idx ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {isUser && (
+                                        <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/10 flex-shrink-0 flex items-center justify-center text-gray-300 font-semibold text-xs mt-0.5">
+                                            {username.charAt(0).toUpperCase()}
                                         </div>
                                     )}
                                 </div>
-                            ))}
-                            {isLoading && (
-                                <div className="flex w-full mt-6 justify-start">
-                                    <div className="flex gap-4 w-full">
-                                        <div className="w-8 h-8 md:w-9 md:h-9 bg-white rounded-full flex items-center justify-center text-[#212121] flex-shrink-0 mt-1 shadow-sm border border-white/10">
-                                            <Bot size={18} />
-                                        </div>
-                                        <div className="flex flex-col gap-3 w-full max-w-2xl mt-1.5">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-gray-300 font-medium text-[15px] animate-pulse">Searching sources</span>
-                                                <div className="flex -space-x-2">
-                                                    <div className="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/50 flex items-center justify-center animate-bounce shadow-sm z-30" style={{ animationDelay: '0ms' }}><Globe size={11} className="text-blue-400" /></div>
-                                                    <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center animate-bounce shadow-sm z-20" style={{ animationDelay: '150ms' }}><BookOpen size={11} className="text-emerald-400" /></div>
-                                                    <div className="w-6 h-6 rounded-full bg-purple-500/20 border border-purple-500/50 flex items-center justify-center animate-bounce shadow-sm z-10" style={{ animationDelay: '300ms' }}><GraduationCap size={11} className="text-purple-400" /></div>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2.5 mt-2">
-                                                <div className="h-4 bg-white/5 rounded-md w-full animate-pulse"></div>
-                                                <div className="h-4 bg-white/5 rounded-md w-5/6 animate-pulse"></div>
-                                                <div className="h-4 bg-white/5 rounded-md w-4/6 animate-pulse"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            <div ref={messagesEndRef} className="h-4" />
+                            );
+                        })
+                    )}
+
+                    {isLoading && (
+                        <div className="flex gap-3 max-w-3xl mx-auto">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex-shrink-0 flex items-center justify-center text-white shadow-md animate-pulse">
+                                <Bot size={16} />
+                            </div>
+                            <div className="bg-[#131728] border border-white/5 rounded-2xl rounded-tl-none px-5 py-4 flex items-center gap-3 text-gray-400 text-xs shadow-xl">
+                                <Loader2 size={16} className="animate-spin text-indigo-400" />
+                                <span>CampusLLM is thinking and synthesizing your answer...</span>
+                            </div>
+                        </div>
+                    )}
+
+                    <div ref={messagesEndRef} />
+                </div>
+
+                {/* Attached File Preview Bar */}
+                {attachedFile && (
+                    <div className="px-4 sm:px-6 md:px-12 max-w-3xl mx-auto w-full">
+                        <div className="flex items-center justify-between p-2.5 bg-indigo-500/10 border border-indigo-500/30 rounded-xl text-xs text-indigo-300 mb-2">
+                            <div className="flex items-center gap-2 truncate">
+                                {attachedFile.type.startsWith("image/") ? (
+                                    <ImageIcon size={15} className="text-indigo-400 flex-shrink-0" />
+                                ) : (
+                                    <FileText size={15} className="text-indigo-400 flex-shrink-0" />
+                                )}
+                                <span className="font-medium truncate">{attachedFile.name}</span>
+                                <span className="text-gray-500 text-[10px]">({Math.round(attachedFile.size / 1024)} KB)</span>
+                            </div>
+                            <button
+                                onClick={() => setAttachedFile(null)}
+                                className="p-1 hover:text-red-400 transition-colors"
+                            >
+                                <X size={14} />
+                            </button>
                         </div>
                     </div>
                 )}
 
-                {/* Input Area */}
-                <div className={cn(
-                    "w-full px-4 md:px-0 flex flex-col items-center z-20 shrink-0 transition-all duration-500",
-                    messages.length === 0 ? "flex-1 justify-center mt-[-8vh]" : "bg-[#212121] pt-4 pb-6 justify-end"
-                )}>
-                    <div className="w-full max-w-3xl relative flex flex-col items-center">
-                        {messages.length === 0 && (
-                            <h2 className="text-3xl md:text-4xl font-medium text-white mb-8 tracking-tight text-center">
-                                How can I help you today?
-                            </h2>
-                        )}
+                {/* Chat Input Bar */}
+                <div className="p-4 sm:p-6 md:px-12 border-t border-white/5 bg-[#0a0c14]">
+                    <form
+                        onSubmit={(e) => handleSubmit(e)}
+                        className="relative max-w-3xl mx-auto flex items-center gap-2 bg-[#121524] border border-white/10 rounded-2xl p-1.5 focus-within:border-indigo-500/50 shadow-2xl transition-all"
+                    >
+                        {/* Hidden file input */}
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileSelect}
+                            accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg,.webp"
+                            className="hidden"
+                        />
 
-                        <style>{`
-                            @keyframes spin-slow {
-                                from { transform: translate(-50%, -50%) rotate(0deg); }
-                                to { transform: translate(-50%, -50%) rotate(360deg); }
-                            }
-                        `}</style>
-                        <div className="relative w-full rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.3)] group overflow-hidden">
-                            <div
-                                className={cn(
-                                    "absolute top-1/2 left-1/2 w-[200%] h-[200%] bg-[conic-gradient(from_0deg,transparent_40%,rgba(255,255,255,1)_100%)] rounded-full z-0 pointer-events-none transition-opacity duration-500",
-                                    isLoading ? "opacity-100" : "opacity-0"
-                                )}
-                                style={{ animation: 'spin-slow 3s linear infinite' }}
-                            />
+                        {/* Paperclip Button */}
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="p-2.5 text-gray-400 hover:text-indigo-400 hover:bg-white/5 rounded-xl transition-all"
+                            title="Attach document or image for doubt solving"
+                        >
+                            <Paperclip size={18} />
+                        </button>
 
-                            <div className="relative flex flex-col w-[calc(100%-4px)] bg-[#2a2a2a] group-focus-within:bg-[#2f2f2f] rounded-[14px] m-[1px] transition-colors duration-300 z-10">
-                                <textarea
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSubmit();
-                                        }
-                                    }}
-                                    placeholder={currentPlaceholder + (isDeleting ? "" : "|")}
-                                    className="w-full bg-transparent text-white placeholder-gray-400 resize-none focus:outline-none min-h-[56px] py-4 px-5 text-[15px] custom-scrollbar"
-                                    style={{ height: 'auto', minHeight: '56px' }}
-                                    rows={1}
-                                />
-                                <div className="flex items-center justify-between px-3 pb-3">
-                                    <div className="flex items-center gap-2">
-                                        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors text-xs font-medium">
-                                            <Bot size={14} />
-                                            Model
-                                        </button>
-                                    </div>
-                                    <button
-                                        onClick={() => handleSubmit()}
-                                        disabled={!input.trim() || isLoading}
-                                        className={cn(
-                                            "p-2 rounded-full transition-all flex items-center justify-center w-8 h-8 outline-none",
-                                            input.trim() && !isLoading ? "bg-white text-black shadow-md hover:scale-105" : "bg-white/5 text-gray-500 cursor-not-allowed"
-                                        )}
-                                    >
-                                        {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={15} className="ml-0.5" />}
-                                    </button>
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder={attachedFile ? "Ask a doubt about this file..." : currentPlaceholder}
+                            className="flex-1 bg-transparent px-2 py-2 text-sm text-white placeholder-gray-500 focus:outline-none"
+                        />
+
+                        <button
+                            type="submit"
+                            disabled={isLoading || (!input.trim() && !attachedFile)}
+                            className="p-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(99,102,241,0.3)] active:scale-95 flex-shrink-0"
+                        >
+                            {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            {/* Grade & GPA Predictor Modal */}
+            {showCalculator && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div className="bg-[#121526] border border-indigo-500/30 rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl custom-scrollbar relative">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-5">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400">
+                                    <Calculator size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-base text-white">VIT Grade & GPA Predictor</h3>
+                                    <p className="text-xs text-gray-400">Calculate relative grading and project your semester SGPA</p>
                                 </div>
                             </div>
+                            <button
+                                onClick={() => setShowCalculator(false)}
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5"
+                            >
+                                <X size={18} />
+                            </button>
                         </div>
 
-                        {messages.length === 0 && (
-                            <div className="flex flex-wrap items-center justify-center gap-2.5 mt-6 w-full px-2">
-                                {SUGGESTED_QUERIES.map((query, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => handleSubmit(undefined, query.text)}
-                                        className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#1c1c1c] border border-white/5 hover:bg-[#2a2a2a] hover:border-white/20 text-gray-300 hover:text-white transition-all text-[13px] font-medium shadow-sm hover:shadow-md"
-                                    >
-                                        <query.icon size={15} className="text-gray-400" />
-                                        {query.label}
-                                    </button>
-                                ))}
+                        {/* Tabs */}
+                        <div className="flex gap-2 p-1 bg-white/5 rounded-xl mb-6 text-xs font-semibold">
+                            <button
+                                onClick={() => setCalcTab("grade")}
+                                className={cn(
+                                    "flex-1 py-2 rounded-lg transition-all",
+                                    calcTab === "grade" ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-white"
+                                )}
+                            >
+                                Relative Grade Predictor
+                            </button>
+                            <button
+                                onClick={() => setCalcTab("gpa")}
+                                className={cn(
+                                    "flex-1 py-2 rounded-lg transition-all",
+                                    calcTab === "gpa" ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-white"
+                                )}
+                            >
+                                Semester SGPA / CGPA Planner
+                            </button>
+                        </div>
+
+                        {/* Tab 1: Grade Predictor */}
+                        {calcTab === "grade" && (
+                            <div className="space-y-4 text-xs">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-gray-400 mb-1">CAT-1 Score (/50)</label>
+                                        <input
+                                            type="number"
+                                            value={cat1}
+                                            onChange={(e) => setCat1(Number(e.target.value))}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-400 mb-1">CAT-2 Score (/50)</label>
+                                        <input
+                                            type="number"
+                                            value={cat2}
+                                            onChange={(e) => setCat2(Number(e.target.value))}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-400 mb-1">DA & Quizzes (/30)</label>
+                                        <input
+                                            type="number"
+                                            value={da}
+                                            onChange={(e) => setDa(Number(e.target.value))}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-400 mb-1">Expected FAT (/100)</label>
+                                        <input
+                                            type="number"
+                                            value={fat}
+                                            onChange={(e) => setFat(Number(e.target.value))}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={handleCalculateGrade}
+                                    className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md"
+                                >
+                                    Calculate Grade
+                                </button>
+
+                                {gradeResult && (
+                                    <div className="mt-4 p-4 bg-indigo-950/40 border border-indigo-500/30 rounded-2xl space-y-2.5">
+                                        <div className="flex items-center justify-between border-b border-indigo-500/20 pb-2">
+                                            <span className="text-gray-300">Internal Marks (60):</span>
+                                            <span className="font-bold text-white">{gradeResult.internal_marks}/60</span>
+                                        </div>
+                                        <div className="flex items-center justify-between border-b border-indigo-500/20 pb-2">
+                                            <span className="text-gray-300">FAT Weighted (40):</span>
+                                            <span className="font-bold text-white">{gradeResult.fat_weighted}/40</span>
+                                        </div>
+                                        <div className="flex items-center justify-between border-b border-indigo-500/20 pb-2">
+                                            <span className="text-gray-300 font-semibold">Grand Total:</span>
+                                            <span className="font-extrabold text-indigo-300 text-sm">{gradeResult.grand_total}/100</span>
+                                        </div>
+                                        <div className="flex items-center justify-between pt-1">
+                                            <span className="text-gray-300 font-semibold">Predicted Grade:</span>
+                                            <span className="px-3 py-1 bg-indigo-500 text-white font-black text-sm rounded-lg shadow">
+                                                {gradeResult.predicted_relative_grade || gradeResult.grade} Grade
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={() => insertCalcToChat(`Calculate my relative grade: CAT1: ${cat1}, CAT2: ${cat2}, DA: ${da}, FAT: ${fat}`)}
+                                            className="w-full mt-2 py-2 bg-white/10 hover:bg-white/15 text-indigo-300 rounded-xl transition-all text-center flex items-center justify-center gap-1.5"
+                                        >
+                                            <span>Ask AI for score breakdown & tips</span>
+                                            <ChevronRight size={14} />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
 
-                        {messages.length > 0 && (
-                            <div className="text-center mt-3 text-xs text-gray-500 font-medium tracking-wide">
-                                Shadow AI can make mistakes. Consider checking important information.
+                        {/* Tab 2: GPA Planner */}
+                        {calcTab === "gpa" && (
+                            <div className="space-y-4 text-xs">
+                                <div className="grid grid-cols-2 gap-3 mb-2">
+                                    <div>
+                                        <label className="block text-gray-400 mb-1">Previous CGPA</label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={prevCgpa}
+                                            onChange={(e) => setPrevCgpa(Number(e.target.value))}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-400 mb-1">Previous Completed Credits</label>
+                                        <input
+                                            type="number"
+                                            value={prevCredits}
+                                            onChange={(e) => setPrevCredits(Number(e.target.value))}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <span className="font-semibold text-gray-300">Semester Courses:</span>
+                                    {courses.map((c, i) => (
+                                        <div key={i} className="flex gap-2 items-center">
+                                            <input
+                                                type="text"
+                                                value={c.name}
+                                                onChange={(e) => {
+                                                    const updated = [...courses];
+                                                    updated[i].name = e.target.value;
+                                                    setCourses(updated);
+                                                }}
+                                                className="flex-1 bg-white/5 border border-white/10 rounded-lg p-2 text-white"
+                                            />
+                                            <select
+                                                value={c.credits}
+                                                onChange={(e) => {
+                                                    const updated = [...courses];
+                                                    updated[i].credits = Number(e.target.value);
+                                                    setCourses(updated);
+                                                }}
+                                                className="bg-white/5 border border-white/10 rounded-lg p-2 text-white"
+                                            >
+                                                <option value={4} className="bg-[#121526]">4 Credits</option>
+                                                <option value={3} className="bg-[#121526]">3 Credits</option>
+                                                <option value={2} className="bg-[#121526]">2 Credits</option>
+                                                <option value={1} className="bg-[#121526]">1 Credit</option>
+                                            </select>
+                                            <select
+                                                value={c.grade}
+                                                onChange={(e) => {
+                                                    const updated = [...courses];
+                                                    updated[i].grade = e.target.value;
+                                                    setCourses(updated);
+                                                }}
+                                                className="bg-white/5 border border-white/10 rounded-lg p-2 text-white font-bold"
+                                            >
+                                                <option value="S" className="bg-[#121526]">S (10)</option>
+                                                <option value="A" className="bg-[#121526]">A (9)</option>
+                                                <option value="B" className="bg-[#121526]">B (8)</option>
+                                                <option value="C" className="bg-[#121526]">C (7)</option>
+                                                <option value="D" className="bg-[#121526]">D (6)</option>
+                                                <option value="E" className="bg-[#121526]">E (5)</option>
+                                            </select>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={handleCalculateGPA}
+                                    className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md"
+                                >
+                                    Compute SGPA & New CGPA
+                                </button>
+
+                                {gpaResult && (
+                                    <div className="mt-4 p-4 bg-indigo-950/40 border border-indigo-500/30 rounded-2xl space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-gray-300">Semester SGPA:</span>
+                                            <span className="font-extrabold text-indigo-300 text-base">{gpaResult.sgpa}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-gray-300">New Projected CGPA:</span>
+                                            <span className="font-black text-emerald-400 text-base">{gpaResult.new_cgpa}</span>
+                                        </div>
+                                        <div className="p-2.5 rounded-xl bg-white/5 text-[11px] text-gray-300 mt-2">
+                                            {gpaResult.nine_pointer_status}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

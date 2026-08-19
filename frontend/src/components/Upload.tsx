@@ -1,9 +1,10 @@
-'use client';
+"use client";
 
 import { useState, useRef } from 'react';
-import { UploadCloud, FileType, CheckCircle, AlertCircle, Loader2, Link2 } from 'lucide-react';
+import { UploadCloud, FileType, CheckCircle, AlertCircle, Loader2, Link2, Sparkles } from 'lucide-react';
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { uploadFile, uploadUrl } from '@/lib/api';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -57,31 +58,12 @@ export default function UploadComponent({ onUploadSuccess }: UploadProps = {}) {
         }
 
         setStatus('uploading');
-        const token = localStorage.getItem('token');
 
         try {
-            let res;
             if (activeTab === 'file') {
-                const formData = new FormData();
-                formData.append('file', file as File);
-                res = await fetch('https://sanjay326-campusllm.hf.space/upload', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData,
-                });
+                await uploadFile(file as File);
             } else {
-                res = await fetch('https://sanjay326-campusllm.hf.space/upload-url', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` 
-                    },
-                    body: JSON.stringify({ url: urlInput }),
-                });
-            }
-
-            if (!res.ok) {
-                throw new Error('Upload failed');
+                await uploadUrl(urlInput);
             }
 
             setStatus('success');
@@ -90,34 +72,43 @@ export default function UploadComponent({ onUploadSuccess }: UploadProps = {}) {
                 setFile(null);
                 setUrlInput('');
                 setStatus('idle');
-            }, 3000);
-        } catch {
+            }, 2500);
+        } catch (err: any) {
             setStatus('error');
-            setErrorMessage('Failed to upload and index document.');
+            setErrorMessage(err.message || 'Failed to upload and index document.');
         }
     };
 
     return (
-        <div className="bg-[#1e1e1e] border border-white/5 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-400"></div>
-
+        <div className="glass-panel border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
             <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold text-xl text-white flex items-center gap-2">
-                    <UploadCloud className="text-purple-400" />
-                    Upload Source
-                </h3>
-                <div className="flex bg-[#252525] p-1 rounded-lg">
-                    <button 
+                <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30">
+                        <UploadCloud size={22} />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-lg text-white">Ingest Knowledge</h3>
+                        <p className="text-xs text-gray-400">Add documents or web links to RAG store</p>
+                    </div>
+                </div>
+                <div className="flex bg-white/5 p-1 rounded-xl border border-white/5">
+                    <button
                         onClick={() => setActiveTab('file')}
-                        className={cn("px-4 py-1.5 rounded-md text-sm font-medium transition-colors", activeTab === 'file' ? "bg-white/10 text-white shadow-sm" : "text-gray-400 hover:text-white")}
+                        className={cn(
+                            "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                            activeTab === 'file' ? "bg-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white"
+                        )}
                     >
                         File
                     </button>
-                    <button 
+                    <button
                         onClick={() => setActiveTab('url')}
-                        className={cn("px-4 py-1.5 rounded-md text-sm font-medium transition-colors", activeTab === 'url' ? "bg-white/10 text-white shadow-sm" : "text-gray-400 hover:text-white")}
+                        className={cn(
+                            "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                            activeTab === 'url' ? "bg-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white"
+                        )}
                     >
-                        URL
+                        Website URL
                     </button>
                 </div>
             </div>
@@ -125,104 +116,96 @@ export default function UploadComponent({ onUploadSuccess }: UploadProps = {}) {
             {activeTab === 'file' ? (
                 <div
                     className={cn(
-                        "border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center text-center transition-all duration-300 cursor-pointer shadow-inner",
-                        isDragging ? "border-purple-500 bg-purple-500/10 scale-[1.02]" : "border-white/10 bg-[#252525] hover:border-white/30 hover:bg-[#2a2a2a]",
-                        file ? "border-green-500/50 bg-green-500/5 hover:border-green-500/70" : ""
+                        "border-2 border-dashed rounded-2xl p-8 sm:p-10 flex flex-col items-center justify-center text-center transition-all duration-300 cursor-pointer",
+                        isDragging ? "border-purple-500 bg-purple-500/10 scale-[1.01]" : "border-white/10 bg-[#141828]/60 hover:border-purple-500/40 hover:bg-[#181d32]/60",
+                        file ? "border-emerald-500/50 bg-emerald-500/5" : ""
                     )}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
                 >
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    accept=".pdf,.txt,.doc,.docx"
-                />
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        accept=".pdf,.txt,.doc,.docx"
+                    />
 
-                {!file ? (
-                    <>
-                        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 transition-transform group-hover:scale-110 duration-300">
-                            <UploadCloud size={32} className="text-gray-400" />
-                        </div>
-                        <p className="text-white font-medium text-lg mb-1">Click to upload or drag and drop</p>
-                        <p className="text-gray-500 text-sm">PDF, TXT, DOC up to 50MB</p>
-                    </>
-                ) : (
-                    <>
-                        <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mb-4">
-                            <FileType size={32} className="text-green-400" />
-                        </div>
-                        <p className="text-white font-medium text-lg mb-1 truncate max-w-[200px] sm:max-w-xs md:max-w-sm">{file.name}</p>
-                        <p className="text-gray-400 text-sm">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                    </>
-                )}
-            </div>
+                    {!file ? (
+                        <>
+                            <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-white/10">
+                                <UploadCloud size={28} className="text-purple-400" />
+                            </div>
+                            <p className="text-white font-semibold text-sm sm:text-base mb-1">Click to upload or drag & drop</p>
+                            <p className="text-gray-400 text-xs">PDF, TXT, DOCX documents (FastEmbed BGE indexed)</p>
+                        </>
+                    ) : (
+                        <>
+                            <div className="w-14 h-14 bg-emerald-500/20 rounded-2xl flex items-center justify-center mb-3 border border-emerald-500/30">
+                                <FileType size={28} className="text-emerald-400" />
+                            </div>
+                            <p className="text-white font-semibold text-sm truncate max-w-xs">{file.name}</p>
+                            <p className="text-gray-400 text-xs mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                        </>
+                    )}
+                </div>
             ) : (
-                <div className="border border-white/10 rounded-2xl p-6 bg-[#252525] flex flex-col gap-4">
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                            <Link2 size={16} className="text-purple-400" />
-                            Website URL
-                        </label>
-                        <input 
-                            type="url" 
-                            placeholder="https://example-university.edu/admissions"
-                            value={urlInput}
-                            onChange={(e) => setUrlInput(e.target.value)}
-                            className="w-full bg-[#1c1c1c] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50 transition-colors"
-                        />
-                        <p className="text-xs text-gray-500">The AI will read the text content of this page to learn from it.</p>
-                    </div>
+                <div className="border border-white/10 rounded-2xl p-6 bg-[#141828]/60 flex flex-col gap-3">
+                    <label className="text-xs font-semibold text-gray-300 flex items-center gap-2">
+                        <Link2 size={15} className="text-purple-400" />
+                        University Webpage URL
+                    </label>
+                    <input
+                        type="url"
+                        placeholder="https://vit.ac.in/academics/ffcs"
+                        value={urlInput}
+                        onChange={(e) => setUrlInput(e.target.value)}
+                        className="w-full bg-[#0e111a] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/60 transition-colors"
+                    />
+                    <p className="text-[11px] text-gray-400">CampusLLM will parse the content, extract paragraphs, and store vector embeddings.</p>
                 </div>
             )}
 
             {((activeTab === 'file' && file) || (activeTab === 'url' && urlInput)) && status === 'idle' && (
-                <div className="mt-8 flex justify-end animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <div className="mt-5 flex justify-end">
                     <button
                         onClick={handleUpload}
-                        className="bg-white text-black px-6 py-2.5 rounded-xl font-medium hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.2)] flex items-center gap-2"
+                        className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold hover:from-purple-500 hover:to-pink-500 transition-all flex items-center gap-2 shadow-lg shadow-purple-900/30 active:scale-95"
                     >
-                        Upload & Index
-                        <UploadCloud size={18} />
+                        <Sparkles size={16} />
+                        Upload & Vectorize
                     </button>
                 </div>
             )}
 
             {status === 'uploading' && (
-                <div className="mt-8 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center gap-4 animate-in fade-in duration-300">
-                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                        <Loader2 className="animate-spin text-blue-400" size={20} />
-                    </div>
+                <div className="mt-5 p-4 bg-purple-500/10 border border-purple-500/20 rounded-2xl flex items-center gap-3.5 animate-in fade-in duration-200">
+                    <Loader2 className="animate-spin text-purple-400 shrink-0" size={20} />
                     <div>
-                        <p className="text-blue-100 font-medium text-sm">Uploading and Vectorizing...</p>
-                        <p className="text-blue-300/70 text-xs">This might take a few moments depending on file size.</p>
+                        <p className="text-white font-semibold text-xs sm:text-sm">Vectorizing & Indexing into ChromaDB...</p>
+                        <p className="text-gray-400 text-[11px]">Generating embeddings using BAAI/bge-small-en-v1.5</p>
                     </div>
                 </div>
             )}
 
             {status === 'success' && (
-                <div className="mt-8 p-4 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center gap-4 animate-in fade-in duration-300">
-                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                        <CheckCircle className="text-green-400" size={20} />
-                    </div>
+                <div className="mt-5 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-3.5 animate-in fade-in duration-200">
+                    <CheckCircle className="text-emerald-400 shrink-0" size={20} />
                     <div>
-                        <p className="text-green-100 font-medium text-sm">Successfully Indexed!</p>
-                        <p className="text-green-300/70 text-xs">The document is now active in Shadow AI&apos;s memory.</p>
+                        <p className="text-emerald-300 font-semibold text-xs sm:text-sm">Successfully Indexed!</p>
+                        <p className="text-emerald-400/80 text-[11px]">Document is now live in CampusLLM's retrieval memory.</p>
                     </div>
                 </div>
             )}
 
             {status === 'error' && (
-                <div className="mt-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-4 animate-in fade-in duration-300">
-                    <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                        <AlertCircle className="text-red-400" size={20} />
-                    </div>
+                <div className="mt-5 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3.5 animate-in fade-in duration-200">
+                    <AlertCircle className="text-red-400 shrink-0" size={20} />
                     <div>
-                        <p className="text-red-100 font-medium text-sm">Upload Failed</p>
-                        <p className="text-red-300/70 text-xs">{errorMessage}</p>
+                        <p className="text-red-300 font-semibold text-xs sm:text-sm">Upload Failed</p>
+                        <p className="text-red-400/80 text-[11px]">{errorMessage}</p>
                     </div>
                 </div>
             )}

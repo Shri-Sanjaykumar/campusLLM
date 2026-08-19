@@ -1,0 +1,30 @@
+VIT Student Community Insights & Practical Tips from r/Vit (Reddit Community):
+
+1. Attendance & 9-Pointer Reality:
+- 9-Pointers (CGPA >= 9.0) have absolute attendance exemption in theory classes. However, students emphasize that maintaining 9+ CGPA requires submitting all Digital Assignments (DAs) on time and scoring high in CAT-1 and CAT-2.
+- For non-9-pointers, strict 75% attendance is required. Below 75% results in an 'N' grade (debarred from FAT). Medical leaves (ML) can provide attendance relaxation if approved by the Proctor.
+
+2. FFCS (Fully Flexible Credit System) Strategy:
+- Prioritize good faculties over convenient time slots. Checking senior feedback and student reviews on Telegram/Reddit before FFCS is strongly recommended.
+- "Clash Course" resolution: When registering, always have a Plan B timetable prepared in case your preferred slot fills up in seconds.
+- Maintain a balance of 20-24 credits per semester to avoid burnout during CAT/FAT exam weeks.
+
+3. Relative Grading & Pass Criteria:
+- Passing in VIT requires:
+  1. Overall aggregate score >= 50% across internal assessments (CATs, DAs) and FAT.
+  2. Scoring at least 40 out of 100 in the Final Assessment Test (FAT).
+- In relative grading, if the class average is high (e.g. 70+), scoring 90+ may be required for an 'S' grade. If class average is low (e.g. 45), 'S' grade cutoffs can drop to 75+.
+
+4. Placements & 2026 Batch Advice:
+- Eligibility: Maintain CGPA >= 8.5 to be eligible for 95%+ of Super Dream companies (CTC >= 10 LPA).
+- Online Assessments (OAs): Heavily focus on Data Structures & Algorithms (LeetCode Medium), System Design, and CS Fundamentals (OS, DBMS, CN, OOPs).
+- Pre-Placement Offers (PPOs): Summer internships via campus hiring have high PPO conversion rates in companies like Microsoft, Fidelity, Wells Fargo, JP Morgan, and Oracle.
+
+5. Hostel Life & Mess Rankings:
+- Men's Hostels (MH): Blocks Q, R, S, T are newer with better amenities and lifts.
+- Ladies Hostels (LH): Blocks G, H, J are preferred for modern rooms.
+- Mess Food: Special Mess and North/South Indian catering services are reviewed positively for variety.
+- Night permissions and library access allowed until 11:00 PM with student biometric ID.
+
+Community Discussions & Experiences:
+

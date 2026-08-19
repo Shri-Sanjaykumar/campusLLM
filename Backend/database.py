@@ -3,13 +3,28 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from datetime import datetime
 
 import os
+from dotenv import load_dotenv
 
-# We URL encode the @ in the password as %40
-SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres.iolgbfaoxmmaukihhysa:Priyaviji%4081@aws-1-ap-south-1.pooler.supabase.com:6543/postgres")
+load_dotenv()
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, pool_pre_ping=True
-)
+# Check for DATABASE_URL with fallback to local SQLite
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    DATABASE_URL = "sqlite:///./campus_llm.db"
+
+try:
+    if DATABASE_URL.startswith("sqlite"):
+        engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+    else:
+        engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+    # Test connection
+    with engine.connect() as conn:
+        pass
+except Exception as e:
+    print(f"Warning: Primary database connection failed ({str(e)}). Falling back to SQLite.")
+    DATABASE_URL = "sqlite:///./campus_llm.db"
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

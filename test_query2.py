@@ -1,6 +1,7 @@
 import requests
+import os
 
-BASE_URL = 'https://sanjay326-campusllm.hf.space'
+BASE_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
 
 # Get Token
 resp = requests.post(f'{BASE_URL}/token', data={'username': 'vit_data_bot', 'password': 'securepassword123'})

@@ -2,7 +2,7 @@ import requests
 import json
 import os
 
-BASE_URL = 'https://sanjay326-campusllm.hf.space'
+BASE_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
 
 # 1. Register Admin
 print('Registering admin...')

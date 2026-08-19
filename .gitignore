@@ -4,29 +4,51 @@ __pycache__/
 *$py.class
 env/
 venv/
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Sensitive Environment Configurations
 .env
 .env.local
+.env.*.local
+Backend/.env
+frontend/.env.local
+*.env
+
+# Local Databases & Runtime Artifacts
+*.db
+*.sqlite
+*.sqlite3
+Backend/*.db
+Backend/*.sqlite
+users.db
+Backend/users.db
+Backend/temp/
+Backend/temp_user_attachments/
+uploaded_files/
+Backend/uploaded_files/
+chroma_db/
+Backend/chroma_db/
+chroma_db_v2/
+Backend/chroma_db_v2/
 
 # Node.js & Next.js
 node_modules/
-npm-debug.log
-yarn-error.log
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 .next/
+frontend/.next/
 out/
+frontend/out/
 build/
+frontend/build/
 .vercel/
 
-# VSCode
+# IDE & OS
 .vscode/
-
-# OS
+.idea/
 .DS_Store
 Thumbs.db
-
-# RAG Data
-users.db
-chroma_db/
-uploaded_files/
-Backend/users.db
-Backend/chroma_db/
-Backend/uploaded_files/

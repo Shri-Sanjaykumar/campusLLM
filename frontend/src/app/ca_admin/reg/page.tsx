@@ -2,11 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, Loader2, UserPlus } from 'lucide-react';
+import { ShieldCheck, Loader2, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { registerAdmin } from '@/lib/api';
 
 export default function AdminRegisterPage() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
@@ -14,100 +17,118 @@ export default function AdminRegisterPage() {
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+
+        if (password !== confirmPassword) {
+            setError('Passwords do not match');
+            return;
+        }
+
+        if (password.length < 6) {
+            setError('Password must be at least 6 characters long');
+            return;
+        }
+
         setIsLoading(true);
 
         try {
-            const res = await fetch('https://sanjay326-campusllm.hf.space/register_admin', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ username, password, role: 'admin' }),
-            });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.detail || 'Registration failed');
-            }
-
-            // Redirect directly to the admin login page upon success
+            await registerAdmin(username, password);
             router.push('/campus_admin/login');
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
+        } catch (err: any) {
+            setError(err.message || 'Admin registration failed');
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-[#121212] relative overflow-hidden font-sans py-12">
-            {/* Background Accents (Red/Orange for distinct Admin feel) */}
-            <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-orange-600/10 blur-[120px] rounded-full pointer-events-none"></div>
-            <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-red-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+        <div className="flex min-h-screen items-center justify-center bg-[#0a0c14] relative overflow-hidden font-sans p-4 sm:p-6">
+            {/* Background Ambient Glows */}
+            <div className="absolute top-[-10%] right-[-10%] w-[45vw] h-[45vw] max-w-[500px] max-h-[500px] bg-purple-600/20 blur-[130px] rounded-full pointer-events-none animate-cosmic" />
+            <div className="absolute bottom-[-10%] left-[-10%] w-[45vw] h-[45vw] max-w-[500px] max-h-[500px] bg-pink-600/15 blur-[130px] rounded-full pointer-events-none animate-cosmic" style={{ animationDelay: '2.5s' }} />
 
-            <div className="w-full max-w-md p-8 md:p-10 z-10 border border-white/5 bg-[#1a1a1a]/50 backdrop-blur-xl rounded-3xl shadow-2xl">
-                <div className="flex flex-col items-center mb-10">
-                    <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-6 border border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.05)] transition-transform hover:scale-105 duration-300">
-                        <ShieldCheck size={32} className="text-white" />
+            <div className="w-full max-w-md glass-panel rounded-3xl p-7 sm:p-9 z-10 border border-purple-500/20 shadow-2xl">
+                <div className="flex flex-col items-center mb-8 text-center">
+                    <div className="w-16 h-16 bg-purple-500/15 border border-purple-500/30 rounded-2xl flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(168,85,247,0.3)]">
+                        <ShieldCheck size={32} className="text-purple-400" />
                     </div>
-                    <h2 className="text-3xl font-bold text-white tracking-tight">Admin Registration</h2>
-                    <p className="text-gray-400 mt-2 text-sm font-medium">Create a new privileged account</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Admin Registration</h2>
+                    <p className="text-gray-400 mt-1.5 text-xs sm:text-sm">Create a privileged university manager account</p>
                 </div>
 
-                <form onSubmit={handleRegister} className="space-y-6">
+                <form onSubmit={handleRegister} className="space-y-4">
                     {error && (
-                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-center animate-in fade-in zoom-in-95 duration-200">
-                            <p className="text-red-400 text-sm font-medium">{error}</p>
+                        <div className="p-3.5 bg-red-500/10 border border-red-500/25 rounded-xl text-center animate-in fade-in duration-200">
+                            <p className="text-red-400 text-xs sm:text-sm font-medium">{error}</p>
                         </div>
                     )}
 
-                    <div className="space-y-5">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2 ml-1">Admin Username</label>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-1.5 ml-1">Admin Username</label>
+                        <input
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className="w-full p-3.5 bg-[#141824]/90 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/70 focus:ring-1 focus:ring-purple-500/70 transition-all text-sm"
+                            placeholder="Choose an admin username"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-1.5 ml-1">Password</label>
+                        <div className="relative">
                             <input
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                className="w-full p-4 bg-[#121212] border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 transition-all shadow-inner text-[15px]"
-                                placeholder="Choose a username"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2 ml-1">Password</label>
-                            <input
-                                type="password"
+                                type={showPassword ? "text" : "password"}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full p-4 bg-[#121212] border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 transition-all shadow-inner text-[15px] tracking-wide"
-                                placeholder="Create a password"
+                                className="w-full p-3.5 pr-10 bg-[#141824]/90 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/70 focus:ring-1 focus:ring-purple-500/70 transition-all text-sm"
+                                placeholder="Create a strong password"
                                 required
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                            >
+                                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
                         </div>
+                    </div>
 
-                        {/* Note: the user role is hardcoded on the backend to "admin" for this endpoint, we no longer need the role selector here. */}
+                    <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-1.5 ml-1">Confirm Password</label>
+                        <input
+                            type={showPassword ? "text" : "password"}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="w-full p-3.5 bg-[#141824]/90 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/70 focus:ring-1 focus:ring-purple-500/70 transition-all text-sm"
+                            placeholder="Confirm password"
+                            required
+                        />
                     </div>
 
                     <div className="pt-2">
                         <button
                             type="submit"
-                            disabled={isLoading || !username || !password}
-                            className="w-full py-4 px-4 bg-white text-black font-semibold rounded-xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:scale-100 disabled:shadow-none"
+                            disabled={isLoading || !username || !password || !confirmPassword}
+                            className="w-full py-3.5 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold text-sm rounded-xl hover:from-purple-500 hover:to-pink-500 transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-900/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isLoading ? <Loader2 size={18} className="animate-spin" /> : (
+                            {isLoading ? (
+                                <Loader2 size={18} className="animate-spin" />
+                            ) : (
                                 <>
-                                    Create Admin Account
-                                    <UserPlus size={18} />
+                                    Register Admin Account
+                                    <UserPlus size={16} />
                                 </>
                             )}
                         </button>
                     </div>
                 </form>
 
-                <div className="text-center mt-10 border-t border-white/5 pt-6">
-                    <p className="text-sm text-gray-500">
+                <div className="text-center mt-6 pt-4 border-t border-white/5 space-y-2">
+                    <p className="text-xs text-gray-400">
                         Already have an admin account?{' '}
-                        <a href="/campus_admin/login" className="text-gray-400 hover:text-white underline underline-offset-4 decoration-white/20 hover:decoration-white/60 font-medium transition-all">
+                        <a href="/campus_admin/login" className="text-purple-400 hover:text-purple-300 font-semibold underline underline-offset-4 decoration-purple-400/30 hover:decoration-purple-400 transition-all">
                             Log in here
                         </a>
                     </p>
@@ -116,3 +137,4 @@ export default function AdminRegisterPage() {
         </div>
     );
 }
+

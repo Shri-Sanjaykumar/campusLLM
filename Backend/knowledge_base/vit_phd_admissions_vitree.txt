@@ -1,0 +1,25 @@
+VIT PhD Admissions, Direct PhD, and Research Programs (admissions.vit.ac.in/phdapplication):
+
+1. Research Programs Offered:
+- Ph.D. in Engineering (Computer Science, Electronics, Electrical, Mechanical, Chemical, Civil, Biotechnology, etc.)
+- Ph.D. in Sciences (Physics, Chemistry, Mathematics)
+- Ph.D. in Management, Humanities, Social Sciences, and Languages
+- Direct Ph.D. in Engineering (for outstanding B.Tech graduates with CGPA >= 8.0/8.5 without requiring a Master's degree)
+- Integrated Ph.D. programs
+
+2. Eligibility Criteria:
+- Ph.D. in Engineering: Master's degree in Engineering/Technology with a minimum of 60% marks (6.5 CGPA) or equivalent.
+- Ph.D. in Science / Humanities: Master's degree in relevant discipline with minimum 60% marks.
+- Direct Ph.D.: B.E./B.Tech graduates with minimum 75% marks or 8.0 CGPA from recognized institutes.
+
+3. Admission Process & VITREE (VIT Research Entrance Examination):
+- Application: Submitted online via the official portal https://admissions.vit.ac.in/phdapplication/login.
+- Selection Stages:
+  1. VITREE: Computer-Based Test covering Technical Core Subject (70 marks) and Research Aptitude / English (30 marks).
+  2. Personal Interview: Evaluation of research proposal, academic background, publication record, and technical knowledge.
+- Exemption: Candidates with valid national fellowships (CSIR-NET JRF, UGC-NET JRF, ICMR, GATE with top percentile) are directly invited for interview.
+
+4. Research Fellowships & Financial Support:
+- VIT Research Fellowship (VIT-RF): Monthly stipend of ₹25,000 to ₹31,000 + contingency grant for full-time scholars.
+- RGNF, CSIR, DST-INSPIRE, and industry-sponsored research fellowships available.
+- State-of-the-art research centers (Nano-technology, Automotive Research, Clean Energy, AI & Robotics, Biomaterials).
