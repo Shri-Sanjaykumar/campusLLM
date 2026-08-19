@@ -1,10 +1,13 @@
 # 🎓 CampusLLM — Enterprise University RAG & Multimodal AI Platform
 
+[![Live Application](https://img.shields.io/badge/Live_Production-campus--llm--eta.vercel.app-00C7B7?style=for-the-badge&logo=vercel&logoColor=white)](https://campus-llm-eta.vercel.app/)
 [![Next.js](https://img.shields.io/badge/Next.js-16.0-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![LLM Engine](https://img.shields.io/badge/Neural_Engine-State_of_the_Art-blueviolet?style=for-the-badge)](https://fastapi.tiangolo.com/)
 [![ChromaDB](https://img.shields.io/badge/ChromaDB-VectorStore-orange?style=for-the-badge)](https://www.trychroma.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+
+> 🌐 **Live Web Application**: [https://campus-llm-eta.vercel.app/](https://campus-llm-eta.vercel.app/)
 
 **CampusLLM** is an enterprise-grade, retrieval-augmented generation (RAG) campus intelligence platform engineered to resolve academic, procedural, placement, and technical inquiries for university students. Engineered with state-of-the-art multimodal reasoning, **ChromaDB** vector storage, **FastEmbed ONNX** dense embeddings, and an in-chat **GradeVIT** academic simulator.
 
